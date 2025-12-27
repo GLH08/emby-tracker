@@ -1,0 +1,42 @@
+services:
+  backend:
+    image: ghcr.io/glh08/emby-tracker/backend:latest
+    container_name: emby-tracker-backend
+    restart: unless-stopped
+    environment:
+      - EMBY_URL=${EMBY_URL}
+      - EMBY_API_KEY=${EMBY_API_KEY}
+      - ALLOWED_EMBY_USERS=${ALLOWED_EMBY_USERS:-}
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
+      - DATABASE_URL=sqlite:///./data/emby_tracker.db
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-30}
+      - SYNC_ON_STARTUP=${SYNC_ON_STARTUP:-true}
+    volumes:
+      - ./data:/app/data
+    networks:
+      - emby-tracker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    image: ghcr.io/glh08/emby-tracker/frontend:latest
+    container_name: emby-tracker-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - emby-tracker-network
+
+networks:
+  emby-tracker-network:
+    driver: bridge
