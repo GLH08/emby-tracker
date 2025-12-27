@@ -162,16 +162,18 @@ async def sync_all_users():
         # 过滤允许的用户
         allowed_ids = settings.allowed_emby_user_ids
         if allowed_ids:
-            # 支持用户名和用户ID匹配
-            users = [u for u in users if u.Id in allowed_ids or u.Name in allowed_ids]
+            # 支持用户名和用户ID匹配，users 是字典列表
+            users = [u for u in users if u.get("Id") in allowed_ids or u.get("Name") in allowed_ids]
         
         async with async_session_maker() as db:
             for user in users:
+                user_id = user.get("Id") if isinstance(user, dict) else user.Id
+                user_name = user.get("Name") if isinstance(user, dict) else user.Name
                 try:
-                    result = await sync_user_history(user.Id, db)
-                    logger.info(f"用户 {user.Name} 同步完成: 新增 {result['added']}, 更新 {result['updated']}")
+                    result = await sync_user_history(user_id, db)
+                    logger.info(f"用户 {user_name} 同步完成: 新增 {result['added']}, 更新 {result['updated']}")
                 except Exception as e:
-                    logger.error(f"用户 {user.Name} 同步失败: {e}")
+                    logger.error(f"用户 {user_name} 同步失败: {e}")
         
         logger.info("所有用户同步完成")
         
