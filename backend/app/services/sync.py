@@ -16,6 +16,28 @@ settings = get_settings()
 _sync_task = None
 _is_running = False
 
+# 缓存剧集信息（genres, rating）
+_series_cache = {}
+
+
+async def get_series_info(user_id: str, series_id: str) -> dict:
+    """获取剧集的 genres 和 rating 信息（带缓存）"""
+    cache_key = f"{user_id}:{series_id}"
+    if cache_key in _series_cache:
+        return _series_cache[cache_key]
+    
+    try:
+        series = await emby_service.get_item(user_id, series_id)
+        info = {
+            "genres": series.genres or [],
+            "community_rating": series.community_rating,
+        }
+        _series_cache[cache_key] = info
+        return info
+    except Exception as e:
+        logger.warning(f"获取剧集信息失败 {series_id}: {e}")
+        return {"genres": [], "community_rating": None}
+
 
 async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
     """同步单个用户的观看历史"""
@@ -87,6 +109,20 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
             
             runtime_minutes = int(item.runtime_ticks / 600000000) if item.runtime_ticks else 0
             
+            # 获取 genres 和 rating
+            # 对于剧集，从 Series 获取；对于电影，直接使用
+            genres = item.genres or []
+            community_rating = item.community_rating
+            
+            if item.type == "Episode" and item.series_id:
+                # 剧集的 genres 和 rating 通常在 Series 级别
+                if not genres or not community_rating:
+                    series_info = await get_series_info(user_id, item.series_id)
+                    if not genres:
+                        genres = series_info.get("genres", [])
+                    if not community_rating:
+                        community_rating = series_info.get("community_rating")
+            
             if existing_record:
                 needs_update = False
                 
@@ -108,6 +144,15 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                         existing_record.last_played_date = item.last_played_date
                         needs_update = True
                 
+                # 更新 genres 和 community_rating（如果之前为空）
+                if genres and not existing_record.genres:
+                    existing_record.genres = genres
+                    needs_update = True
+                
+                if community_rating and not existing_record.community_rating:
+                    existing_record.community_rating = community_rating
+                    needs_update = True
+                
                 if needs_update:
                     updated += 1
             else:
@@ -122,8 +167,8 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                     episode_number=item.index_number,
                     year=item.year,
                     runtime_minutes=runtime_minutes,
-                    community_rating=item.community_rating,
-                    genres=item.genres,
+                    community_rating=community_rating,
+                    genres=genres,
                     watched=item.played,
                     watch_progress=progress,
                     play_count=max(item.play_count, 1),
@@ -135,6 +180,9 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                 added += 1
         
         await db.commit()
+        
+        # 清理缓存
+        _series_cache.clear()
         
     except Exception as e:
         await db.rollback()

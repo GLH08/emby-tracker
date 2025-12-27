@@ -171,17 +171,29 @@
             :to="getRecentItemLink(item)"
             class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-100 transition-colors"
           >
-            <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-100 flex items-center justify-center flex-shrink-0">
+            <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-100 flex items-center justify-center flex-shrink-0 relative">
               <svg v-if="item.type === 'Movie'" class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
               </svg>
               <svg v-else class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
               </svg>
+              <!-- 已完成标记 -->
+              <div v-if="item.is_played" class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
             </div>
             <div class="flex-1 min-w-0">
               <p class="font-medium text-gray-900 dark:text-white truncate">{{ getRecentItemTitle(item) }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">{{ getRecentItemSubtitle(item) }}</p>
+              <div class="flex items-center space-x-2">
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ getRecentItemSubtitle(item) }}</p>
+                <!-- 进度显示 -->
+                <span v-if="item.progress_percent > 0 && item.progress_percent < 100" class="text-xs px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+                  {{ Math.round(item.progress_percent) }}%
+                </span>
+              </div>
             </div>
             <span class="text-xs text-gray-400">{{ item.runtime_minutes }}分钟</span>
           </router-link>
