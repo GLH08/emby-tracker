@@ -144,12 +144,12 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                         existing_record.last_played_date = item.last_played_date
                         needs_update = True
                 
-                # 更新 genres 和 community_rating（如果之前为空）
-                if genres and not existing_record.genres:
+                # 更新 genres 和 community_rating
+                if genres and (not existing_record.genres or existing_record.genres != genres):
                     existing_record.genres = genres
                     needs_update = True
                 
-                if community_rating and not existing_record.community_rating:
+                if community_rating and existing_record.community_rating != community_rating:
                     existing_record.community_rating = community_rating
                     needs_update = True
                 
