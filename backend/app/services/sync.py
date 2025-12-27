@@ -114,14 +114,25 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
             genres = item.genres or []
             community_rating = item.community_rating
             
-            if item.type == "Episode" and item.series_id:
-                # 剧集的 genres 和 rating 通常在 Series 级别
-                if not genres or not community_rating:
-                    series_info = await get_series_info(user_id, item.series_id)
-                    if not genres:
-                        genres = series_info.get("genres", [])
-                    if not community_rating:
-                        community_rating = series_info.get("community_rating")
+            # 如果没有评分或类型，获取完整的媒体信息
+            if not community_rating or not genres:
+                try:
+                    if item.type == "Episode" and item.series_id:
+                        # 剧集从 Series 获取
+                        series_info = await get_series_info(user_id, item.series_id)
+                        if not genres:
+                            genres = series_info.get("genres", [])
+                        if not community_rating:
+                            community_rating = series_info.get("community_rating")
+                    else:
+                        # 电影或其他类型，获取完整信息
+                        full_item = await emby_service.get_item(user_id, item.id)
+                        if not genres:
+                            genres = full_item.genres or []
+                        if not community_rating:
+                            community_rating = full_item.community_rating
+                except Exception as e:
+                    logger.warning(f"获取完整媒体信息失败 {item.id}: {e}")
             
             if existing_record:
                 needs_update = False
