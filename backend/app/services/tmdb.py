@@ -108,6 +108,31 @@ class TMDBService:
         """获取类型列表"""
         return await self._request(f"/genre/{media_type}/list")
     
+    async def get_tv_on_the_air(self, page: int = 1) -> dict:
+        """获取正在播出的剧集"""
+        return await self._request("/tv/on_the_air", params={"page": page})
+    
+    async def get_tv_airing_today(self, page: int = 1) -> dict:
+        """获取今日播出的剧集"""
+        return await self._request("/tv/airing_today", params={"page": page})
+    
+    async def discover_tv(self, params: dict = None) -> dict:
+        """发现剧集（支持按日期筛选）"""
+        return await self._request("/discover/tv", params=params)
+    
+    async def discover_movie(self, params: dict = None) -> dict:
+        """发现电影（支持按日期筛选）"""
+        return await self._request("/discover/movie", params=params)
+    
+    async def get_tv_changes(self, start_date: str = None, end_date: str = None, page: int = 1) -> dict:
+        """获取剧集变更"""
+        params = {"page": page}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return await self._request("/tv/changes", params=params)
+    
     def get_image_url(self, path: str, size: str = "w500") -> str:
         """获取图片完整 URL"""
         if not path:

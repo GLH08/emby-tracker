@@ -128,4 +128,13 @@ export const configApi = {
   healthCheck: () => api.get('/health'),
 }
 
+// Calendar API (日历)
+export const calendarApi = {
+  getShowsCalendar: (startDate, endDate, userId) => api.get('/calendar/shows', { params: { start_date: startDate, end_date: endDate, user_id: userId } }),
+  getMoviesCalendar: (startDate, endDate) => api.get('/calendar/movies', { params: { start_date: startDate, end_date: endDate } }),
+  getAllCalendar: (startDate, endDate, userId) => api.get('/calendar/all', { params: { start_date: startDate, end_date: endDate, user_id: userId } }),
+  getMyShowsCalendar: (startDate, endDate, userId) => api.get('/calendar/my-shows', { params: { start_date: startDate, end_date: endDate, user_id: userId } }),
+  exportIcal: (userId) => `/api/calendar/ical?user_id=${userId}`,
+}
+
 export default api

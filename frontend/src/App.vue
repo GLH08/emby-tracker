@@ -145,6 +145,15 @@
               >
                 统计
               </router-link>
+              <router-link 
+                to="/calendar"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="isActiveLink('/calendar') 
+                  ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400' 
+                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-100'"
+              >
+                日历
+              </router-link>
             </div>
 
             <!-- 右侧操作 -->
