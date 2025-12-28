@@ -61,7 +61,8 @@ class OMDbService:
         today = datetime.now().date()
         
         # 尝试找到一个可用的 key
-        for _ in range(len(self.api_keys)):
+        tried_keys = 0
+        while tried_keys < len(self.api_keys):
             key = self.api_keys[self.current_key_index]
             usage = self.key_usage[key]
             
@@ -70,23 +71,34 @@ class OMDbService:
                 usage['count'] = 0
                 usage['errors'] = 0
                 usage['last_reset'] = today
+                usage['exhausted'] = False
             
-            # 检查是否超过限制（每天 1000 次）
+            # 检查是否已标记为耗尽（当天收到 API 限制错误）
+            if usage.get('exhausted', False):
+                self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+                tried_keys += 1
+                continue
+            
+            # 检查是否超过限制（每天 1000 次）或错误过多
             if usage['count'] < 1000 and usage['errors'] < 10:
                 return key
             
             # 切换到下一个 key
             self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+            tried_keys += 1
         
         logger.warning("所有 OMDb API Key 已达到限制")
         return None
     
-    def _record_usage(self, key: str, success: bool = True):
+    def _record_usage(self, key: str, success: bool = True, exhausted: bool = False):
         """记录 API Key 使用情况"""
         if key in self.key_usage:
             self.key_usage[key]['count'] += 1
             if not success:
                 self.key_usage[key]['errors'] += 1
+            if exhausted:
+                self.key_usage[key]['exhausted'] = True
+                logger.warning(f"OMDb API Key {key[:4]}**** 已达到每日限制")
             # 轮询到下一个 key
             self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
     
@@ -111,10 +123,11 @@ class OMDbService:
                 else:
                     error = data.get('Error', 'Unknown error')
                     logger.warning(f"OMDb API 返回错误: {error}")
-                    # 如果是请求限制错误，标记这个 key
-                    if 'limit' in error.lower():
-                        self.key_usage[api_key]['count'] = 1000
-                    self._record_usage(api_key, success=False)
+                    # 如果是请求限制错误，标记这个 key 为耗尽
+                    if 'limit' in error.lower() or 'exceeded' in error.lower():
+                        self._record_usage(api_key, success=False, exhausted=True)
+                    else:
+                        self._record_usage(api_key, success=False)
                     return None
                     
         except httpx.HTTPStatusError as e:
@@ -342,14 +355,21 @@ class OMDbService:
                 usage['count'] = 0
                 usage['errors'] = 0
                 usage['last_reset'] = today
+                usage['exhausted'] = False
             
-            remaining = 1000 - usage.get('count', 0)
+            # 如果已标记为耗尽，剩余为 0
+            if usage.get('exhausted', False):
+                remaining = 0
+            else:
+                remaining = 1000 - usage.get('count', 0)
+            
             total_remaining += remaining
             keys_status.append({
                 'index': i + 1,
                 'used': usage.get('count', 0),
                 'remaining': remaining,
                 'errors': usage.get('errors', 0),
+                'exhausted': usage.get('exhausted', False),
                 'is_current': i == self.current_key_index
             })
         

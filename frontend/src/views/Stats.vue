@@ -145,11 +145,71 @@
         </div>
       </div>
 
+      <!-- 最近观看（移到上方） -->
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">最近观看</h2>
+          <div class="flex items-center space-x-2">
+            <select v-model="recentType" @change="fetchRecentWatched" class="input w-auto text-sm py-1">
+              <option value="all">全部</option>
+              <option value="movie">电影</option>
+              <option value="episode">剧集</option>
+            </select>
+            <router-link to="/history" class="text-sm text-primary-500 hover:text-primary-600">
+              查看全部 →
+            </router-link>
+          </div>
+        </div>
+        <div v-if="recentWatched.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+          暂无数据
+        </div>
+        <div v-else class="grid md:grid-cols-2 gap-3">
+          <router-link 
+            v-for="item in recentWatched" 
+            :key="item.id"
+            :to="getRecentItemLink(item)"
+            class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-100 transition-colors"
+          >
+            <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-100 flex items-center justify-center flex-shrink-0 relative">
+              <svg v-if="item.type === 'Movie'" class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+              </svg>
+              <svg v-else class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+              <!-- 已完成标记 -->
+              <div v-if="item.is_played && item.progress_percent >= 100" class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 dark:text-white truncate">{{ getRecentItemTitle(item) }}</p>
+              <div class="flex items-center space-x-2">
+                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ getRecentItemSubtitle(item) }}</p>
+                <!-- 进度条（有进度但未完成时显示） -->
+                <div v-if="item.progress_percent != null && item.progress_percent > 0 && item.progress_percent < 100" class="flex items-center space-x-1 flex-shrink-0">
+                  <div class="w-12 h-1.5 bg-gray-200 dark:bg-dark-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-primary-500 rounded-full" :style="{ width: `${item.progress_percent}%` }"></div>
+                  </div>
+                  <span class="text-xs text-primary-500">{{ Math.round(item.progress_percent) }}%</span>
+                </div>
+              </div>
+            </div>
+            <span class="text-xs text-gray-400 flex-shrink-0">{{ item.runtime_minutes }}分钟</span>
+          </router-link>
+        </div>
+      </div>
+
       <!-- 30天趋势 + 时段分布 -->
       <div class="grid md:grid-cols-2 gap-6 mb-6">
         <div class="card p-6">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">30天观看趋势</h2>
-          <div class="h-40 flex items-end space-x-1">
+          <div v-if="totalTrendCount === 0" class="h-40 flex items-center justify-center text-gray-500 dark:text-gray-400">
+            暂无数据
+          </div>
+          <div v-else class="h-40 flex items-end space-x-1">
             <div 
               v-for="day in trends" 
               :key="day.date"
@@ -158,7 +218,7 @@
               <div 
                 class="w-full rounded-t transition-all hover:opacity-80 cursor-pointer"
                 :class="day.total > 0 ? 'bg-primary-500' : 'bg-gray-100 dark:bg-dark-100'"
-                :style="{ height: `${Math.max((day.total / maxTrendCount) * 100, 4)}%` }"
+                :style="{ height: `${day.total > 0 ? Math.max((day.total / maxTrendCount) * 100, 8) : 4}%` }"
                 :title="`${day.date}: ${day.total} 次`"
               ></div>
             </div>
@@ -191,7 +251,10 @@
       <div class="grid md:grid-cols-2 gap-6 mb-6">
         <div class="card p-6">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">星期分布</h2>
-          <div class="flex items-end justify-between h-32">
+          <div v-if="totalWeekdayCount === 0" class="h-32 flex items-center justify-center text-gray-500 dark:text-gray-400">
+            暂无数据
+          </div>
+          <div v-else class="flex items-end justify-between h-32">
             <div 
               v-for="day in weekdayStats" 
               :key="day.name"
@@ -199,7 +262,7 @@
             >
               <div 
                 class="w-8 rounded-t bg-blue-500 transition-all hover:bg-blue-600"
-                :style="{ height: `${maxWeekdayCount > 0 ? Math.max((day.count / maxWeekdayCount) * 100, 8) : 8}%` }"
+                :style="{ height: `${day.count > 0 ? Math.max((day.count / maxWeekdayCount) * 100, 8) : 4}%` }"
               ></div>
               <span class="text-xs text-gray-500 mt-2">{{ day.name }}</span>
               <span class="text-xs text-gray-400">{{ day.count }}</span>
@@ -236,8 +299,8 @@
             含 {{ ratingMeta.external_used_count }} 部 IMDB 评分补充
           </div>
         </div>
-        <div v-if="totalRatings === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-          暂无数据
+        <div v-if="totalRatings === 0" class="h-32 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+          <span>暂无评分数据</span>
           <p v-if="ratingMeta.no_rating_count > 0" class="text-xs mt-2">
             {{ ratingMeta.no_rating_count }} 部影片无评分数据
           </p>
@@ -250,7 +313,7 @@
           >
             <div 
               class="w-12 rounded-t bg-gradient-to-t from-yellow-500 to-orange-400 transition-all hover:opacity-80"
-              :style="{ height: `${maxRatingCount > 0 ? Math.max((count / maxRatingCount) * 100, 8) : 8}%` }"
+              :style="{ height: `${count > 0 ? Math.max((count / maxRatingCount) * 100, 8) : 4}%` }"
             ></div>
             <span class="text-xs text-gray-500 mt-2">{{ rating }}</span>
             <span class="text-xs text-gray-400">{{ count }}</span>
@@ -259,62 +322,6 @@
         <p v-if="ratingMeta.no_rating_count > 0 && totalRatings > 0" class="text-xs text-gray-400 mt-3 text-center">
           另有 {{ ratingMeta.no_rating_count }} 部影片无评分数据
         </p>
-      </div>
-
-      <!-- 最近观看 -->
-      <div class="card p-6">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">最近观看</h2>
-          <div class="flex items-center space-x-2">
-            <select v-model="recentType" @change="fetchRecentWatched" class="input w-auto text-sm py-1">
-              <option value="all">全部</option>
-              <option value="movie">电影</option>
-              <option value="episode">剧集</option>
-            </select>
-            <router-link to="/history" class="text-sm text-primary-500 hover:text-primary-600">
-              查看全部 →
-            </router-link>
-          </div>
-        </div>
-        <div v-if="recentWatched.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-          暂无数据
-        </div>
-        <div v-else class="grid md:grid-cols-2 gap-3">
-          <router-link 
-            v-for="item in recentWatched" 
-            :key="item.id"
-            :to="getRecentItemLink(item)"
-            class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-100 transition-colors"
-          >
-            <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-100 flex items-center justify-center flex-shrink-0 relative">
-              <svg v-if="item.type === 'Movie'" class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-              </svg>
-              <svg v-else class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-              </svg>
-              <div v-if="item.is_played" class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                </svg>
-              </div>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="font-medium text-gray-900 dark:text-white truncate">{{ getRecentItemTitle(item) }}</p>
-              <div class="flex items-center space-x-2">
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ getRecentItemSubtitle(item) }}</p>
-                <!-- 进度条（未完成时显示） -->
-                <div v-if="item.progress_percent > 0 && item.progress_percent < 100" class="flex items-center space-x-1">
-                  <div class="w-12 h-1.5 bg-gray-200 dark:bg-dark-100 rounded-full overflow-hidden">
-                    <div class="h-full bg-primary-500 rounded-full" :style="{ width: `${item.progress_percent}%` }"></div>
-                  </div>
-                  <span class="text-xs text-primary-500">{{ Math.round(item.progress_percent) }}%</span>
-                </div>
-              </div>
-            </div>
-            <span class="text-xs text-gray-400">{{ item.runtime_minutes }}分钟</span>
-          </router-link>
-        </div>
       </div>
     </template>
   </div>
@@ -355,8 +362,10 @@ const maxGenreCount = computed(() => Math.max(...Object.values(genreStats.value)
 const maxRatingCount = computed(() => Math.max(...Object.values(ratingStats.value), 1))
 const totalRatings = computed(() => Object.values(ratingStats.value).reduce((a, b) => a + b, 0))
 const maxTrendCount = computed(() => Math.max(...trends.value.map(t => t.total), 1))
+const totalTrendCount = computed(() => trends.value.reduce((a, b) => a + b.total, 0))
 const maxTimeCount = computed(() => Math.max(...Object.values(timeDistribution.value).map(t => t.count), 1))
 const maxWeekdayCount = computed(() => Math.max(...weekdayStats.value.map(d => d.count), 1))
+const totalWeekdayCount = computed(() => weekdayStats.value.reduce((a, b) => a + b.count, 0))
 
 // 方法
 const formatWatchTime = (minutes) => {
