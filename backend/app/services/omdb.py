@@ -9,10 +9,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.models import ExternalRating
 
-settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
@@ -25,24 +23,38 @@ class OMDbService:
         self.api_keys: List[str] = []
         self.current_key_index = 0
         self.key_usage: dict = {}  # 记录每个 key 的使用情况
+        self._initialized = False
+    
+    def _ensure_initialized(self):
+        """确保 API Keys 已加载（延迟初始化）"""
+        if self._initialized:
+            return
         self._load_api_keys()
+        self._initialized = True
     
     def _load_api_keys(self):
         """从配置加载 API Keys"""
+        # 重新获取配置（不使用缓存）
+        from app.config import Settings
+        settings = Settings()
+        
         keys_str = getattr(settings, 'omdb_api_keys', '') or ''
         if keys_str:
             self.api_keys = [k.strip() for k in keys_str.split(',') if k.strip()]
             # 初始化使用记录
             for key in self.api_keys:
-                self.key_usage[key] = {
-                    'count': 0,
-                    'last_reset': datetime.now().date(),
-                    'errors': 0
-                }
+                if key not in self.key_usage:
+                    self.key_usage[key] = {
+                        'count': 0,
+                        'last_reset': datetime.now().date(),
+                        'errors': 0
+                    }
         logger.info(f"OMDb 服务已加载 {len(self.api_keys)} 个 API Key")
     
     def _get_next_key(self) -> Optional[str]:
         """获取下一个可用的 API Key（轮询策略）"""
+        self._ensure_initialized()
+        
         if not self.api_keys:
             return None
         
@@ -317,6 +329,8 @@ class OMDbService:
     
     def get_status(self) -> dict:
         """获取服务状态"""
+        self._ensure_initialized()
+        
         today = datetime.now().date()
         keys_status = []
         total_remaining = 0
