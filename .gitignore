@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# Project docs (local only)
+ROADMAP.md
+
 # Data
 data/
 *.db

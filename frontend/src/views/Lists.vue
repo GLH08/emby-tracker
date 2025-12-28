@@ -1,13 +1,16 @@
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- 页面标题 -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
       <h1 class="text-3xl font-bold text-gray-900 dark:text-white">我的列表</h1>
-      <button @click="showCreateModal = true" class="btn-primary">
+      <button 
+        @click="showCreateModal = true" 
+        class="btn btn-primary flex items-center justify-center"
+      >
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
-        创建列表
+        <span>创建列表</span>
       </button>
     </div>
 
@@ -22,7 +25,12 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
       </svg>
       <p class="text-gray-500 dark:text-gray-400 mb-4">还没有创建任何列表</p>
-      <button @click="showCreateModal = true" class="btn-primary">创建第一个列表</button>
+      <button 
+        @click="showCreateModal = true" 
+        class="btn btn-primary"
+      >
+        创建第一个列表
+      </button>
     </div>
 
     <!-- 列表网格 -->
@@ -34,7 +42,7 @@
         class="card overflow-hidden hover:shadow-lg transition-shadow group"
       >
         <!-- 封面 -->
-        <div class="aspect-video bg-gradient-to-br from-primary-500 to-purple-600 relative">
+        <div class="aspect-video bg-gradient-to-br from-gray-400 to-gray-600 relative">
           <img
             v-if="list.cover_image"
             :src="list.cover_image"
@@ -91,8 +99,8 @@
         </div>
         
         <div class="flex justify-end space-x-3 mt-6">
-          <button @click="showCreateModal = false" class="btn-secondary">取消</button>
-          <button @click="createList" :disabled="!newList.name" class="btn-primary">创建</button>
+          <button @click="showCreateModal = false" class="btn btn-secondary">取消</button>
+          <button @click="createList" :disabled="!newList.name" class="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed">创建</button>
         </div>
       </div>
     </div>

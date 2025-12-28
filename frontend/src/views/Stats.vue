@@ -1,9 +1,9 @@
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- 页面标题 -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
       <h1 class="text-3xl font-bold text-gray-900 dark:text-white">观影统计</h1>
-      <div class="flex items-center space-x-2">
+      <div class="flex flex-wrap items-center gap-2">
         <router-link 
           to="/yearly-review"
           class="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 transition-all flex items-center"
@@ -13,21 +13,23 @@
           </svg>
           年度回顾
         </router-link>
-        <button 
-          @click="activeTab = 'all'"
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          :class="activeTab === 'all' ? 'bg-primary-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-600 dark:text-gray-400'"
-        >全部</button>
-        <button 
-          @click="activeTab = 'movie'"
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          :class="activeTab === 'movie' ? 'bg-primary-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-600 dark:text-gray-400'"
-        >电影</button>
-        <button 
-          @click="activeTab = 'show'"
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          :class="activeTab === 'show' ? 'bg-primary-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-600 dark:text-gray-400'"
-        >剧集</button>
+        <div class="flex items-center rounded-lg bg-gray-100 dark:bg-dark-100 p-1">
+          <button 
+            @click="activeTab = 'all'"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            :class="activeTab === 'all' ? 'bg-white dark:bg-dark-200 text-primary-500 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+          >全部</button>
+          <button 
+            @click="activeTab = 'movie'"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            :class="activeTab === 'movie' ? 'bg-white dark:bg-dark-200 text-primary-500 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+          >电影</button>
+          <button 
+            @click="activeTab = 'show'"
+            class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+            :class="activeTab === 'show' ? 'bg-white dark:bg-dark-200 text-primary-500 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
+          >剧集</button>
+        </div>
       </div>
     </div>
 
@@ -38,7 +40,7 @@
 
     <template v-else>
       <!-- 总览卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <!-- 总观看时长 -->
         <div class="card p-6 bg-gradient-to-br from-primary-500 to-purple-600 text-white">
           <div class="flex items-center justify-between">
@@ -118,7 +120,6 @@
         </div>
         <div class="overflow-x-auto">
           <div class="flex flex-col gap-1 min-w-max">
-            <!-- 热力图行 -->
             <div v-for="dayIndex in 7" :key="dayIndex" class="flex items-center">
               <div class="w-8 text-xs text-gray-400">{{ ['一', '二', '三', '四', '五', '六', '日'][dayIndex - 1] }}</div>
               <div class="flex gap-1">
@@ -132,7 +133,6 @@
               </div>
             </div>
           </div>
-          <!-- 图例 -->
           <div class="flex items-center justify-end mt-3 space-x-2 text-xs text-gray-400">
             <span>少</span>
             <div class="w-3 h-3 rounded-sm bg-gray-100 dark:bg-dark-100"></div>
@@ -147,7 +147,6 @@
 
       <!-- 30天趋势 + 时段分布 -->
       <div class="grid md:grid-cols-2 gap-6 mb-6">
-        <!-- 30天观看趋势 -->
         <div class="card p-6">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">30天观看趋势</h2>
           <div class="h-40 flex items-end space-x-1">
@@ -170,7 +169,6 @@
           </div>
         </div>
 
-        <!-- 观看时段分布 -->
         <div class="card p-6">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">观看时段分布</h2>
           <div class="space-y-4">
@@ -191,7 +189,6 @@
 
       <!-- 星期分布 + 类型分布 -->
       <div class="grid md:grid-cols-2 gap-6 mb-6">
-        <!-- 星期分布 -->
         <div class="card p-6">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">星期分布</h2>
           <div class="flex items-end justify-between h-32">
@@ -210,7 +207,6 @@
           </div>
         </div>
 
-        <!-- 类型分布 -->
         <div class="card p-6">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">类型分布</h2>
           <div v-if="Object.keys(genreStats).length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -234,9 +230,17 @@
 
       <!-- 评分分布 -->
       <div class="card p-6 mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">评分分布</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">评分分布</h2>
+          <div v-if="ratingMeta.external_used_count > 0" class="text-xs text-gray-500 dark:text-gray-400">
+            含 {{ ratingMeta.external_used_count }} 部 IMDB 评分补充
+          </div>
+        </div>
         <div v-if="totalRatings === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
           暂无数据
+          <p v-if="ratingMeta.no_rating_count > 0" class="text-xs mt-2">
+            {{ ratingMeta.no_rating_count }} 部影片无评分数据
+          </p>
         </div>
         <div v-else class="flex items-end justify-between h-32">
           <div 
@@ -252,6 +256,9 @@
             <span class="text-xs text-gray-400">{{ count }}</span>
           </div>
         </div>
+        <p v-if="ratingMeta.no_rating_count > 0 && totalRatings > 0" class="text-xs text-gray-400 mt-3 text-center">
+          另有 {{ ratingMeta.no_rating_count }} 部影片无评分数据
+        </p>
       </div>
 
       <!-- 最近观看 -->
@@ -294,135 +301,12 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="font-medium text-gray-900 dark:text-white truncate">{{ getRecentItemTitle(item) }}</p>
-              <div class="flex items-center space-x-2">
-                <p class="text-xs text-gray-500 dark:text-gray-400">{{ getRecentItemSubtitle(item) }}</p>
-                <span v-if="item.progress_percent > 0 && item.progress_percent < 100" class="text-xs px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
-                  {{ Math.round(item.progress_percent) }}%
-                </span>
-              </div>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ getRecentItemSubtitle(item) }}</p>
             </div>
             <span class="text-xs text-gray-400">{{ item.runtime_minutes }}分钟</span>
           </router-link>
         </div>
       </div>
-      <!-- 总览卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <!-- 总观看时长 -->
-        <div class="card p-6 bg-gradient-to-br from-primary-500 to-purple-600 text-white">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm opacity-80">总观看时长</p>
-              <p class="text-4xl font-bold mt-2">{{ formatWatchTime(overview.total_watch_time_minutes) }}</p>
-              <p class="text-sm opacity-80 mt-1">约 {{ overview.total_watch_time_days }} 天</p>
-            </div>
-            <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        <!-- 电影统计 -->
-        <div class="card p-6">
-          <div class="flex items-center space-x-4 mb-4">
-            <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">电影</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ overview.movies.watched }} / {{ overview.movies.total }}</p>
-            </div>
-          </div>
-          <div class="space-y-2">
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-500 dark:text-gray-400">完成度</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ overview.movies.progress_percent }}%</span>
-            </div>
-            <div class="h-2 bg-gray-100 dark:bg-dark-100 rounded-full overflow-hidden">
-              <div class="h-full bg-purple-500 rounded-full transition-all" :style="{ width: `${overview.movies.progress_percent}%` }"></div>
-            </div>
-            <p class="text-xs text-gray-400">{{ formatWatchTime(overview.movies.watch_time_minutes) }} 观看时长</p>
-          </div>
-        </div>
-
-        <!-- 剧集统计 -->
-        <div class="card p-6">
-          <div class="flex items-center space-x-4 mb-4">
-            <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-              </svg>
-            </div>
-            <div>
-              <p class="text-sm text-gray-500 dark:text-gray-400">剧集</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ overview.shows.episodes_watched }} / {{ overview.shows.episodes_total }}</p>
-            </div>
-          </div>
-          <div class="space-y-2">
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-500 dark:text-gray-400">完成度</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ overview.shows.progress_percent }}%</span>
-            </div>
-            <div class="h-2 bg-gray-100 dark:bg-dark-100 rounded-full overflow-hidden">
-              <div class="h-full bg-blue-500 rounded-full transition-all" :style="{ width: `${overview.shows.progress_percent}%` }"></div>
-            </div>
-            <p class="text-xs text-gray-400">{{ overview.shows.total }} 部剧集 · {{ formatWatchTime(overview.shows.watch_time_minutes) }} 观看时长</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 图表区域 -->
-      <div class="grid md:grid-cols-2 gap-6 mb-10">
-        <!-- 类型分布 -->
-        <div class="card p-6">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">类型分布</h2>
-          <div v-if="Object.keys(genreStats).length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            暂无数据
-          </div>
-          <div v-else class="space-y-3">
-            <div v-for="(count, genre, index) in genreStats" :key="genre" class="flex items-center">
-              <span class="w-20 text-sm text-gray-600 dark:text-gray-400 truncate">{{ genre }}</span>
-              <div class="flex-1 mx-3 h-6 bg-gray-100 dark:bg-dark-100 rounded-lg overflow-hidden relative">
-                <div 
-                  class="h-full rounded-lg transition-all"
-                  :class="getGenreColor(index)"
-                  :style="{ width: `${(count / maxGenreCount) * 100}%` }"
-                ></div>
-                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-600 dark:text-gray-300">{{ count }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 评分分布 -->
-        <div class="card p-6">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">评分分布</h2>
-          <div v-if="totalRatings === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
-            暂无数据
-          </div>
-          <div v-else class="space-y-3">
-            <div v-for="(count, rating) in ratingStats" :key="rating" class="flex items-center">
-              <div class="w-16 flex items-center">
-                <svg class="w-4 h-4 text-yellow-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                </svg>
-                <span class="text-sm text-gray-600 dark:text-gray-400">{{ rating }}</span>
-              </div>
-              <div class="flex-1 mx-3 h-6 bg-gray-100 dark:bg-dark-100 rounded-lg overflow-hidden relative">
-                <div 
-                  class="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg transition-all"
-                  :style="{ width: `${(count / maxRatingCount) * 100}%` }"
-                ></div>
-                <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-600 dark:text-gray-300">{{ count }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </template>
   </div>
 </template>
@@ -446,6 +330,7 @@ const overview = ref({
 })
 const genreStats = ref({})
 const ratingStats = ref({})
+const ratingMeta = ref({ no_rating_count: 0, external_used_count: 0 })
 const recentWatched = ref([])
 const recentType = ref('all')
 
@@ -463,15 +348,6 @@ const totalRatings = computed(() => Object.values(ratingStats.value).reduce((a, 
 const maxTrendCount = computed(() => Math.max(...trends.value.map(t => t.total), 1))
 const maxTimeCount = computed(() => Math.max(...Object.values(timeDistribution.value).map(t => t.count), 1))
 const maxWeekdayCount = computed(() => Math.max(...weekdayStats.value.map(d => d.count), 1))
-
-// 热力图按周分组
-const heatmapWeeks = computed(() => {
-  const weeks = []
-  for (let i = 0; i < heatmap.value.length; i += 7) {
-    weeks.push(heatmap.value.slice(i, i + 7))
-  }
-  return weeks
-})
 
 // 方法
 const formatWatchTime = (minutes) => {
@@ -559,6 +435,10 @@ const fetchAllData = async () => {
     overview.value = overviewData
     genreStats.value = genres.genres || {}
     ratingStats.value = ratings.ratings || {}
+    ratingMeta.value = {
+      no_rating_count: ratings.no_rating_count || 0,
+      external_used_count: ratings.external_used_count || 0,
+    }
     streak.value = streakData
     trends.value = trendsData.trends || []
     heatmap.value = heatmapData.heatmap || []
@@ -588,11 +468,3 @@ watch(activeTab, fetchAllData)
 watch(() => appStore.currentEmbyUser, fetchAllData)
 onMounted(fetchAllData)
 </script>
-
-<style scoped>
-.writing-mode-vertical {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-}
-</style>

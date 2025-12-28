@@ -187,3 +187,30 @@ class Checkin(Base):
     
     # 可选评论
     comment = Column(Text, nullable=True)
+
+
+class ExternalRating(Base):
+    """外部评分缓存（IMDB、Rotten Tomatoes、Metacritic 等）"""
+    __tablename__ = "external_ratings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    imdb_id = Column(String(20), unique=True, index=True)  # IMDB ID (tt1234567)
+    tmdb_id = Column(Integer, index=True, nullable=True)
+    media_type = Column(String(20))  # movie / tv
+    title = Column(String(500))
+    year = Column(Integer, nullable=True)
+    
+    # 各平台评分
+    imdb_rating = Column(Float, nullable=True)  # IMDB 评分 (0-10)
+    imdb_votes = Column(Integer, nullable=True)  # IMDB 投票数
+    rotten_tomatoes = Column(Integer, nullable=True)  # 烂番茄新鲜度 (0-100)
+    metacritic = Column(Integer, nullable=True)  # Metacritic 评分 (0-100)
+    
+    # 额外信息
+    rated = Column(String(20), nullable=True)  # 分级 (PG-13, R 等)
+    awards = Column(Text, nullable=True)  # 获奖信息
+    box_office = Column(String(50), nullable=True)  # 票房
+    
+    # 缓存时间
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

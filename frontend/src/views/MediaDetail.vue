@@ -49,6 +49,67 @@
             <span v-if="item.official_rating" class="badge badge-warning">{{ item.official_rating }}</span>
           </div>
 
+          <!-- 外部评分（IMDB/烂番茄/Metacritic） -->
+          <div v-if="externalRatings || loadingExternalRatings" class="flex flex-wrap items-center gap-4 mb-6">
+            <div v-if="loadingExternalRatings" class="text-sm text-gray-500 dark:text-gray-400">
+              加载评分中...
+            </div>
+            <template v-else-if="externalRatings">
+              <!-- IMDB 评分 -->
+              <a 
+                v-if="externalRatings.imdb_rating" 
+                :href="`https://www.imdb.com/title/${externalRatings.imdb_id}/`"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-1.5 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors cursor-pointer"
+              >
+                <span class="font-bold text-yellow-600 dark:text-yellow-400 text-sm">IMDb</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.imdb_rating.toFixed(1) }}</span>
+                <span v-if="externalRatings.imdb_votes" class="text-xs text-gray-500 dark:text-gray-400">
+                  ({{ formatVotes(externalRatings.imdb_votes) }})
+                </span>
+                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+              </a>
+              
+              <!-- 烂番茄 -->
+              <a 
+                v-if="externalRatings.rotten_tomatoes" 
+                :href="getRottenTomatoesUrl()"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
+                :class="externalRatings.rotten_tomatoes >= 60 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'"
+              >
+                <span class="text-lg">{{ externalRatings.rotten_tomatoes >= 60 ? '🍅' : '🥬' }}</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.rotten_tomatoes }}%</span>
+                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+              </a>
+              
+              <!-- Metacritic -->
+              <a 
+                v-if="externalRatings.metacritic" 
+                :href="getMetacriticUrl()"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
+                :class="getMetacriticClass(externalRatings.metacritic)"
+              >
+                <span class="font-bold text-xs px-1.5 py-0.5 rounded text-white"
+                  :class="getMetacriticBadgeClass(externalRatings.metacritic)">
+                  M
+                </span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.metacritic }}</span>
+                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+              </a>
+            </template>
+          </div>
+
           <!-- 类型标签 -->
           <div v-if="item.genres?.length" class="flex flex-wrap gap-2 mb-6">
             <span 
@@ -110,6 +171,18 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
               </svg>
               想看
+            </button>
+
+            <!-- 评分按钮 -->
+            <button 
+              @click="openRatingModal"
+              class="btn"
+              :class="userRating?.rated ? 'btn-primary' : 'btn-secondary'"
+            >
+              <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+              {{ userRating?.rated ? `我的评分 ${userRating.rating}` : '评分' }}
             </button>
           </div>
 
@@ -251,13 +324,76 @@
         </div>
       </div>
     </div>
+
+    <!-- 评分弹窗 -->
+    <div v-if="showRatingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showRatingModal = false">
+      <div class="bg-white dark:bg-dark-200 rounded-2xl p-6 w-full max-w-md mx-4">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          {{ userRating?.rated ? '修改评分' : '为这部作品评分' }}
+        </h2>
+        
+        <!-- 星级评分 -->
+        <div class="mb-6">
+          <div class="flex items-center justify-center space-x-1 mb-2">
+            <button
+              v-for="star in 10"
+              :key="star"
+              @click="ratingValue = star"
+              class="p-1 transition-transform hover:scale-110"
+            >
+              <svg 
+                class="w-8 h-8 transition-colors"
+                :class="star <= ratingValue ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'"
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+            </button>
+          </div>
+          <p class="text-center text-2xl font-bold text-gray-900 dark:text-white">
+            {{ ratingValue > 0 ? ratingValue : '-' }} / 10
+          </p>
+        </div>
+        
+        <!-- 评论 -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            写点评价（可选）
+          </label>
+          <textarea
+            v-model="reviewText"
+            class="input w-full"
+            rows="4"
+            placeholder="分享你的观影感受..."
+          ></textarea>
+        </div>
+        
+        <!-- 按钮 -->
+        <div class="flex justify-end space-x-3">
+          <button 
+            @click="showRatingModal = false" 
+            class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-200 transition-colors"
+          >
+            取消
+          </button>
+          <button 
+            @click="saveRating" 
+            :disabled="ratingValue === 0 || savingRating"
+            class="px-4 py-2 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {{ savingRating ? '保存中...' : '保存评分' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAppStore } from '../stores/app'
-import { embyApi, tmdbApi, watchlistApi, checkinApi } from '../api'
+import { embyApi, tmdbApi, watchlistApi, checkinApi, ratingsApi, externalRatingsApi } from '../api'
 
 const props = defineProps({
   id: String,
@@ -272,6 +408,17 @@ const seasons = ref([])
 const selectedSeason = ref(null)
 const episodes = ref([])
 const checkingIn = ref(false)
+
+// 评分相关
+const showRatingModal = ref(false)
+const userRating = ref(null)
+const ratingValue = ref(0)
+const reviewText = ref('')
+const savingRating = ref(false)
+
+// 外部评分
+const externalRatings = ref(null)
+const loadingExternalRatings = ref(false)
 
 const posterUrl = computed(() => {
   if (!item.value) return ''
@@ -298,6 +445,45 @@ const trailer = computed(() => {
   return tmdbData.value.videos.results.find(v => v.type === 'Trailer' && v.site === 'YouTube')
 })
 
+// 格式化投票数
+const formatVotes = (votes) => {
+  if (votes >= 1000000) {
+    return (votes / 1000000).toFixed(1) + 'M'
+  } else if (votes >= 1000) {
+    return (votes / 1000).toFixed(1) + 'K'
+  }
+  return votes.toString()
+}
+
+// Metacritic 背景色
+const getMetacriticClass = (score) => {
+  if (score >= 61) return 'bg-green-50 dark:bg-green-900/20'
+  if (score >= 40) return 'bg-yellow-50 dark:bg-yellow-900/20'
+  return 'bg-red-50 dark:bg-red-900/20'
+}
+
+// Metacritic 徽章色
+const getMetacriticBadgeClass = (score) => {
+  if (score >= 61) return 'bg-green-500'
+  if (score >= 40) return 'bg-yellow-500'
+  return 'bg-red-500'
+}
+
+// 生成烂番茄搜索 URL
+const getRottenTomatoesUrl = () => {
+  if (!item.value) return '#'
+  const title = encodeURIComponent(item.value.name)
+  return `https://www.rottentomatoes.com/search?search=${title}`
+}
+
+// 生成 Metacritic 搜索 URL
+const getMetacriticUrl = () => {
+  if (!item.value) return '#'
+  const title = encodeURIComponent(item.value.name)
+  const type = props.type === 'movie' ? 'movie' : 'tv'
+  return `https://www.metacritic.com/search/${title}/?page=1&category=${type}`
+}
+
 const fetchItem = async () => {
   if (!appStore.currentEmbyUser) return
   
@@ -322,10 +508,117 @@ const fetchItem = async () => {
         selectedSeason.value = seasons.value[0]
       }
     }
+    
+    // 检查用户评分
+    await checkUserRating()
+    
+    // 获取外部评分（IMDB/烂番茄/Metacritic）
+    await fetchExternalRatings()
   } catch (e) {
     console.error('Failed to fetch item:', e)
   } finally {
     loading.value = false
+  }
+}
+
+// 检查用户是否已评分
+const checkUserRating = async () => {
+  if (!appStore.currentEmbyUser || !item.value) return
+  
+  try {
+    const tmdbId = item.value.provider_ids?.Tmdb
+    const result = await ratingsApi.checkRating(appStore.currentEmbyUser.Id, {
+      emby_id: item.value.id,
+      tmdb_id: tmdbId ? parseInt(tmdbId) : null,
+      media_type: props.type === 'movie' ? 'movie' : 'tv',
+    })
+    
+    if (result.rated) {
+      userRating.value = result
+      ratingValue.value = result.rating
+      reviewText.value = result.review || ''
+    }
+  } catch (e) {
+    console.error('Failed to check rating:', e)
+  }
+}
+
+// 获取外部评分（IMDB/烂番茄/Metacritic）
+const fetchExternalRatings = async () => {
+  if (!item.value) return
+  
+  loadingExternalRatings.value = true
+  try {
+    const imdbId = item.value.provider_ids?.Imdb
+    const tmdbId = item.value.provider_ids?.Tmdb
+    
+    // 优先使用 IMDB ID，否则使用标题搜索
+    const params = {
+      media_type: props.type === 'movie' ? 'movie' : 'tv',
+    }
+    
+    if (imdbId) {
+      params.imdb_id = imdbId
+    } else {
+      params.title = item.value.name
+      params.year = item.value.year
+    }
+    
+    if (tmdbId) {
+      params.tmdb_id = parseInt(tmdbId)
+    }
+    
+    externalRatings.value = await externalRatingsApi.getRatings(params)
+  } catch (e) {
+    // 404 表示没有找到评分，不是错误
+    if (e.response?.status !== 404) {
+      console.error('Failed to fetch external ratings:', e)
+    }
+    externalRatings.value = null
+  } finally {
+    loadingExternalRatings.value = false
+  }
+}
+
+// 打开评分弹窗
+const openRatingModal = () => {
+  if (userRating.value) {
+    ratingValue.value = userRating.value.rating
+    reviewText.value = userRating.value.review || ''
+  } else {
+    ratingValue.value = 0
+    reviewText.value = ''
+  }
+  showRatingModal.value = true
+}
+
+// 保存评分
+const saveRating = async () => {
+  if (!appStore.currentEmbyUser || !item.value || ratingValue.value === 0) return
+  
+  savingRating.value = true
+  try {
+    const tmdbId = item.value.provider_ids?.Tmdb
+    await ratingsApi.createRating(appStore.currentEmbyUser.Id, {
+      emby_id: item.value.id,
+      tmdb_id: tmdbId ? parseInt(tmdbId) : null,
+      media_type: props.type === 'movie' ? 'movie' : 'tv',
+      title: item.value.name,
+      rating: ratingValue.value,
+      review: reviewText.value || null,
+    })
+    
+    userRating.value = {
+      rated: true,
+      rating: ratingValue.value,
+      review: reviewText.value,
+    }
+    showRatingModal.value = false
+  } catch (e) {
+    console.error('Failed to save rating:', e)
+    alert('保存评分失败')
+  } finally {
+    savingRating.value = false
   }
 }
 

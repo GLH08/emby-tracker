@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
 from app.database import get_db
-from app.models import WatchHistory, Watchlist
+from app.models import WatchHistory, Watchlist, ExternalRating
 from app.schemas import WatchStats
 from app.services.emby import emby_service
 
@@ -221,9 +221,14 @@ async def get_rating_stats(
     user_id: str,
     library_ids: Optional[str] = Query(None, description="逗号分隔的媒体库ID列表"),
     media_type: Optional[str] = Query(None, description="movie 或 show"),
+    use_external: bool = Query(True, description="是否使用外部评分（IMDB）补充"),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取评分分布统计 - 基于本地历史记录"""
+    """
+    获取评分分布统计 - 基于本地历史记录
+    
+    优先使用 Emby/TMDB 评分，如果没有则使用已缓存的 IMDB 评分补充
+    """
     ratings = {
         "9-10": 0,
         "8-9": 0,
@@ -232,6 +237,9 @@ async def get_rating_stats(
         "5-6": 0,
         "0-5": 0,
     }
+    
+    no_rating_count = 0
+    external_used_count = 0
     
     try:
         # 从本地历史记录获取
@@ -245,8 +253,28 @@ async def get_rating_stats(
         result = await db.execute(query)
         history_items = result.scalars().all()
         
+        # 如果启用外部评分，预加载所有缓存的外部评分
+        external_ratings_map = {}
+        if use_external:
+            # 获取所有已缓存的外部评分
+            ext_result = await db.execute(select(ExternalRating))
+            for ext in ext_result.scalars().all():
+                if ext.imdb_id:
+                    external_ratings_map[ext.imdb_id] = ext.imdb_rating
+                if ext.tmdb_id:
+                    external_ratings_map[f"tmdb_{ext.tmdb_id}"] = ext.imdb_rating
+        
         for item in history_items:
             rating = item.community_rating
+            
+            # 如果没有评分，尝试使用外部评分
+            if not rating and use_external:
+                # 尝试通过 TMDB ID 查找
+                if item.tmdb_id:
+                    rating = external_ratings_map.get(f"tmdb_{item.tmdb_id}")
+                    if rating:
+                        external_used_count += 1
+            
             if rating:
                 if rating >= 9:
                     ratings["9-10"] += 1
@@ -260,11 +288,17 @@ async def get_rating_stats(
                     ratings["5-6"] += 1
                 else:
                     ratings["0-5"] += 1
+            else:
+                no_rating_count += 1
                     
     except Exception as e:
         print(f"Error fetching rating stats: {e}")
     
-    return {"ratings": ratings}
+    return {
+        "ratings": ratings,
+        "no_rating_count": no_rating_count,
+        "external_used_count": external_used_count,
+    }
 
 
 @router.get("/recent/{user_id}")

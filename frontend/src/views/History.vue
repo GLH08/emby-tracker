@@ -1,14 +1,14 @@
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- 页面标题 -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
       <div>
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">观看历史</h1>
         <p class="text-gray-500 dark:text-gray-400 mt-1">
           {{ totalCount }} 条记录 · {{ formatDuration(stats.total_minutes) }}
         </p>
       </div>
-      <div class="flex items-center space-x-2">
+      <div class="flex flex-wrap items-center gap-2">
         <!-- 同步按钮 -->
         <button 
           @click="syncFromEmby" 
@@ -22,7 +22,8 @@
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
-          <span>{{ syncing ? '同步中...' : '从 Emby 同步' }}</span>
+          <span class="hidden sm:inline">{{ syncing ? '同步中...' : '从 Emby 同步' }}</span>
+          <span class="sm:hidden">{{ syncing ? '同步中' : '同步' }}</span>
         </button>
         
         <!-- 高级筛选按钮 -->
@@ -34,7 +35,8 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
           </svg>
-          <span>高级筛选</span>
+          <span class="hidden sm:inline">高级筛选</span>
+          <span class="sm:hidden">筛选</span>
           <span v-if="hasActiveFilters" class="px-1.5 py-0.5 bg-white/20 rounded text-xs">{{ activeFilterCount }}</span>
         </button>
         
@@ -43,7 +45,8 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
           </svg>
-          <span>手动添加</span>
+          <span class="hidden sm:inline">手动添加</span>
+          <span class="sm:hidden">添加</span>
         </button>
       </div>
     </div>

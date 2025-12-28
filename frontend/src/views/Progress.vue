@@ -1,22 +1,25 @@
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- 页面标题 -->
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">追剧进度</h1>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">追剧进度</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">追踪你正在观看的剧集</p>
+      </div>
       
       <!-- 统计概览 -->
-      <div class="flex items-center space-x-6 text-sm">
-        <div class="text-center">
-          <div class="text-2xl font-bold text-primary-500">{{ stats.watching_shows }}</div>
-          <div class="text-gray-500 dark:text-gray-400">正在追</div>
+      <div class="flex items-center space-x-4 sm:space-x-6 text-sm">
+        <div class="text-center px-3 py-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+          <div class="text-xl sm:text-2xl font-bold text-primary-500">{{ stats.watching_shows }}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">正在追</div>
         </div>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-green-500">{{ stats.episodes_watched }}</div>
-          <div class="text-gray-500 dark:text-gray-400">已看集数</div>
+        <div class="text-center px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+          <div class="text-xl sm:text-2xl font-bold text-green-500">{{ stats.episodes_watched }}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">已看集数</div>
         </div>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-blue-500">{{ stats.episodes_this_week }}</div>
-          <div class="text-gray-500 dark:text-gray-400">本周观看</div>
+        <div class="text-center px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div class="text-xl sm:text-2xl font-bold text-blue-500">{{ stats.episodes_this_week }}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">本周观看</div>
         </div>
       </div>
     </div>
@@ -227,10 +230,17 @@ const fetchData = async () => {
       progressApi.getProgressStats(userId),
     ])
     
-    shows.value = progressResult.shows || []
-    stats.value = statsResult
+    // 处理返回数据 - 兼容不同的数据结构
+    if (progressResult && typeof progressResult === 'object') {
+      shows.value = Array.isArray(progressResult) ? progressResult : (progressResult.shows || [])
+    } else {
+      shows.value = []
+    }
+    
+    stats.value = statsResult || { watching_shows: 0, episodes_watched: 0, episodes_this_week: 0 }
   } catch (e) {
     console.error('获取进度数据失败:', e)
+    shows.value = []
   } finally {
     loading.value = false
   }
