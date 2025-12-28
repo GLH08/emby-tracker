@@ -8,6 +8,7 @@ services:
       - EMBY_API_KEY=${EMBY_API_KEY}
       - ALLOWED_EMBY_USERS=${ALLOWED_EMBY_USERS:-}
       - TMDB_API_KEY=${TMDB_API_KEY}
+      - OMDB_API_KEYS=${OMDB_API_KEYS:-}
       - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
       - DATABASE_URL=sqlite:///./data/emby_tracker.db
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
