@@ -132,66 +132,87 @@
           </div>
         </div>
         
-        <!-- 展开的季进度 -->
+        <!-- 展开的每集详情 -->
         <div 
           v-if="expandedShow === show.series_id"
-          class="border-t border-gray-100 dark:border-dark-100 bg-gray-50 dark:bg-dark-200 p-4"
+          class="border-t border-gray-100 dark:border-dark-100 bg-gray-50 dark:bg-dark-200"
         >
-          <div class="space-y-4">
-            <div 
-              v-for="season in show.seasons" 
-              :key="season.season_id"
-              class="bg-white dark:bg-dark-300 rounded-lg p-4"
-            >
-              <div class="flex items-center justify-between mb-3">
-                <span class="font-medium text-gray-900 dark:text-white">
-                  {{ season.season_name }}
-                </span>
-                <span class="text-sm text-gray-500">
-                  {{ season.watched_episodes }}/{{ season.total_episodes }} 集
-                  <span class="ml-2" :class="season.progress >= 100 ? 'text-green-500' : 'text-primary-500'">
-                    {{ season.progress }}%
+          <div class="divide-y divide-gray-100 dark:divide-dark-100">
+            <template v-for="season in show.seasons" :key="season.season_id">
+              <!-- 季标题 -->
+              <div class="px-4 py-3 bg-gray-100 dark:bg-dark-300 sticky top-0">
+                <div class="flex items-center justify-between">
+                  <span class="font-medium text-gray-900 dark:text-white">{{ season.season_name }}</span>
+                  <span class="text-sm text-gray-500">
+                    {{ season.watched_episodes }}/{{ season.total_episodes }} 集
+                    <span class="ml-2" :class="season.progress >= 100 ? 'text-green-500' : 'text-primary-500'">
+                      {{ season.progress }}%
+                    </span>
                   </span>
-                </span>
-              </div>
-              <div class="h-1.5 bg-gray-100 dark:bg-dark-100 rounded-full overflow-hidden mb-3">
-                <div 
-                  class="h-full rounded-full"
-                  :class="season.progress >= 100 ? 'bg-green-500' : 'bg-primary-500'"
-                  :style="{ width: `${Math.min(season.progress, 100)}%` }"
-                ></div>
-              </div>
-              
-              <!-- 每集进度（如果有详细数据） -->
-              <div v-if="season.episodes && season.episodes.length > 0" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
-                <div 
-                  v-for="ep in season.episodes" 
-                  :key="ep.episode_id"
-                  class="w-8 h-8 rounded flex items-center justify-center text-xs font-medium cursor-pointer transition-colors"
-                  :class="ep.is_watched 
-                    ? 'bg-green-500 text-white' 
-                    : ep.progress_percent > 0 
-                      ? 'bg-primary-200 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300' 
-                      : 'bg-gray-100 dark:bg-dark-100 text-gray-500'"
-                  :title="`第 ${ep.episode_number} 集${ep.episode_name ? ': ' + ep.episode_name : ''}${ep.is_watched ? ' (已看)' : ep.progress_percent > 0 ? ` (${Math.round(ep.progress_percent)}%)` : ''}`"
-                >
-                  {{ ep.episode_number }}
                 </div>
               </div>
-              <div v-else class="text-xs text-gray-400">
-                点击"查看详情"获取每集进度
+              
+              <!-- 每集列表 -->
+              <div 
+                v-for="ep in season.episodes" 
+                :key="ep.episode_id"
+                class="flex items-center px-4 py-3 hover:bg-white dark:hover:bg-dark-300 transition-colors"
+              >
+                <!-- 集数 -->
+                <div class="w-12 flex-shrink-0">
+                  <span class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    E{{ String(ep.episode_number).padStart(2, '0') }}
+                  </span>
+                </div>
+                
+                <!-- 集名称 -->
+                <div class="flex-1 min-w-0 mr-4">
+                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {{ ep.episode_name || `第 ${ep.episode_number} 集` }}
+                  </p>
+                </div>
+                
+                <!-- 观看状态/进度 -->
+                <div class="flex items-center space-x-2">
+                  <!-- 进度条（有进度但未完成） -->
+                  <div v-if="!ep.is_watched && ep.progress_percent > 0" class="flex items-center space-x-2">
+                    <div class="w-16 h-1.5 bg-gray-200 dark:bg-dark-100 rounded-full overflow-hidden">
+                      <div class="h-full bg-primary-500 rounded-full" :style="{ width: `${ep.progress_percent}%` }"></div>
+                    </div>
+                    <span class="text-xs text-primary-500 w-10">{{ Math.round(ep.progress_percent) }}%</span>
+                  </div>
+                  
+                  <!-- 已看标记 -->
+                  <div 
+                    v-if="ep.is_watched"
+                    class="flex items-center space-x-1 text-green-500"
+                  >
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs">已看</span>
+                  </div>
+                  
+                  <!-- 未看标记 -->
+                  <div 
+                    v-if="!ep.is_watched && ep.progress_percent === 0"
+                    class="text-xs text-gray-400"
+                  >
+                    未看
+                  </div>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
           
           <!-- 查看详情按钮 -->
-          <div class="mt-4 text-center">
+          <div class="p-4 text-center border-t border-gray-100 dark:border-dark-100">
             <router-link 
               :to="`/show/${show.series_id}`"
               class="text-primary-500 hover:text-primary-600 text-sm"
               @click.stop
             >
-              查看详情 →
+              查看完整详情 →
             </router-link>
           </div>
         </div>

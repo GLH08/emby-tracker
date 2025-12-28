@@ -95,12 +95,18 @@ async def get_shows_progress(
                     )
                     ep_record = ep_watched_result.scalar_one_or_none()
                     
+                    # 判断是否已看完：watched 为 True 或 进度 >= 90%
+                    progress_percent = ep_record.watch_progress if ep_record else 0
+                    is_watched = False
+                    if ep_record:
+                        is_watched = ep_record.watched or progress_percent >= 90
+                    
                     episodes_info.append({
                         "episode_id": ep.id,
                         "episode_number": ep.index_number or 0,
                         "episode_name": ep.name,
-                        "is_watched": ep_record is not None,
-                        "progress_percent": ep_record.watch_progress if ep_record else 0,
+                        "is_watched": is_watched,
+                        "progress_percent": progress_percent if not is_watched else 100,
                     })
                 
                 seasons_info.append({

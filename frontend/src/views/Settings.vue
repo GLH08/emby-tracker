@@ -286,27 +286,6 @@
           </div>
         </div>
         
-        <!-- API 状态 -->
-        <div v-if="omdbStatus" class="mb-4 p-4 bg-gray-50 dark:bg-dark-100 rounded-xl">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">API 配额（本次会话）</span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-              {{ omdbStatus.total_keys }} 个 Key
-            </span>
-          </div>
-          <div class="space-y-1">
-            <div v-for="key in omdbStatus.keys" :key="key.index" class="flex items-center text-xs">
-              <span class="w-16 text-gray-500">Key {{ key.index }}</span>
-              <span :class="key.exhausted ? 'text-red-500' : 'text-green-500'">
-                {{ key.exhausted ? '已耗尽' : `已用 ${key.used} 次` }}
-              </span>
-            </div>
-          </div>
-          <p class="text-xs text-gray-400 mt-2">
-            💡 OMDb 免费 Key 每天限 1000 次，配额在 UTC 0 点重置。此处显示本次会话的使用情况。
-          </p>
-        </div>
-        
         <!-- 缓存统计 -->
         <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
           <div class="flex items-center space-x-3">
@@ -315,9 +294,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
               </svg>
             </div>
-            <div>
+            <div class="flex-1">
               <p class="font-medium text-blue-700 dark:text-blue-300">已缓存 {{ cachedRatingsCount }} 部影片评分</p>
-              <p class="text-xs text-blue-600 dark:text-blue-400">缓存后无需重复请求 API</p>
+              <p class="text-xs text-blue-600 dark:text-blue-400">缓存后无需重复请求 API，有效期 7 天</p>
+            </div>
+            <div v-if="omdbStatus" class="text-right">
+              <p class="text-sm text-blue-700 dark:text-blue-300">{{ omdbStatus.total_keys }} 个 API Key</p>
+              <p class="text-xs text-blue-600 dark:text-blue-400">每 Key 每天 1000 次</p>
             </div>
           </div>
         </div>
