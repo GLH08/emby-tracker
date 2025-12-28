@@ -184,6 +184,206 @@
         </div>
       </section>
 
+      <!-- 数据导入/导出 -->
+      <section class="card p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">数据管理</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">导出数据备份或从其他平台导入数据</p>
+        
+        <!-- 导出选项 -->
+        <div class="mb-6">
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-3">导出数据</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a 
+              :href="exportApi.exportHistory(appStore.currentEmbyUser?.Id, 'json')"
+              class="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-100 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-200 transition-colors"
+              download
+            >
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">观看历史</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">JSON 格式</p>
+                </div>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </a>
+            
+            <a 
+              :href="exportApi.exportWatchlist('json')"
+              class="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-100 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-200 transition-colors"
+              download
+            >
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">想看列表</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">JSON 格式</p>
+                </div>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </a>
+            
+            <a 
+              :href="exportApi.exportRatings(appStore.currentEmbyUser?.Id, 'json')"
+              class="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-100 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-200 transition-colors"
+              download
+            >
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">我的评分</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">JSON 格式</p>
+                </div>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </a>
+            
+            <a 
+              :href="exportApi.exportLists(appStore.currentEmbyUser?.Id)"
+              class="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-100 rounded-xl hover:bg-gray-100 dark:hover:bg-dark-200 transition-colors"
+              download
+            >
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">自定义列表</p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">JSON 格式</p>
+                </div>
+              </div>
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+            </a>
+          </div>
+          
+          <!-- 完整备份 -->
+          <a 
+            :href="exportApi.exportFullBackup(appStore.currentEmbyUser?.Id)"
+            class="flex items-center justify-between p-4 mt-3 bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-xl hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
+            download
+          >
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center">
+                <svg class="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                </svg>
+              </div>
+              <div>
+                <p class="font-medium text-primary-700 dark:text-primary-300">完整备份</p>
+                <p class="text-xs text-primary-600 dark:text-primary-400">包含所有数据（历史、列表、评分）</p>
+              </div>
+            </div>
+            <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+          </a>
+        </div>
+        
+        <!-- 导入选项 -->
+        <div>
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-3">导入数据</h3>
+          <div class="space-y-3">
+            <!-- 从 Trakt 导入 -->
+            <div class="p-4 bg-gray-50 dark:bg-dark-100 rounded-xl">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                  <div class="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900 dark:text-white">从 Trakt 导入</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">支持 Trakt 导出的 JSON 格式</p>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <input 
+                  type="file" 
+                  ref="traktFileInput"
+                  accept=".json"
+                  class="hidden"
+                  @change="handleTraktImport"
+                />
+                <button 
+                  @click="$refs.traktFileInput.click()"
+                  class="btn btn-secondary flex-1"
+                  :disabled="importingTrakt"
+                >
+                  {{ importingTrakt ? '导入中...' : '选择文件' }}
+                </button>
+              </div>
+            </div>
+            
+            <!-- 从备份恢复 -->
+            <div class="p-4 bg-gray-50 dark:bg-dark-100 rounded-xl">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-3">
+                  <div class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900 dark:text-white">从备份恢复</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">恢复之前导出的完整备份</p>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <input 
+                  type="file" 
+                  ref="backupFileInput"
+                  accept=".json"
+                  class="hidden"
+                  @change="handleBackupImport"
+                />
+                <button 
+                  @click="$refs.backupFileInput.click()"
+                  class="btn btn-secondary flex-1"
+                  :disabled="importingBackup"
+                >
+                  {{ importingBackup ? '恢复中...' : '选择备份文件' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 导入结果提示 -->
+        <div v-if="importResult" class="mt-4 p-4 rounded-xl" :class="importResult.success ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'">
+          <p class="font-medium" :class="importResult.success ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'">
+            {{ importResult.message }}
+          </p>
+          <p v-if="importResult.details" class="text-sm mt-1" :class="importResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+            {{ importResult.details }}
+          </p>
+        </div>
+      </section>
+
       <!-- 退出登录 -->
       <section class="card p-6">
         <button @click="handleLogout" class="btn btn-secondary w-full">
@@ -362,7 +562,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { authApi, heroApi, embyApi } from '../api'
+import { authApi, heroApi, embyApi, exportApi } from '../api'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -399,6 +599,11 @@ const guestForm = reactive({
   password: '',
   allowedEmbyUsers: [],
 })
+
+// 数据导入
+const importingTrakt = ref(false)
+const importingBackup = ref(false)
+const importResult = ref(null)
 
 const selectEmbyUser = (user) => {
   appStore.setCurrentEmbyUser(user)
@@ -589,4 +794,64 @@ onMounted(() => {
   fetchGuests()
   fetchHeroSlides()
 })
+
+// 导入处理函数
+const handleTraktImport = async (event) => {
+  const file = event.target.files[0]
+  if (!file || !appStore.currentEmbyUser) return
+  
+  importingTrakt.value = true
+  importResult.value = null
+  
+  try {
+    const result = await exportApi.importTraktHistory(appStore.currentEmbyUser.Id, file)
+    importResult.value = {
+      success: true,
+      message: '从 Trakt 导入成功！',
+      details: `导入 ${result.imported} 条记录，跳过 ${result.skipped} 条重复记录`
+    }
+  } catch (e) {
+    importResult.value = {
+      success: false,
+      message: '导入失败',
+      details: e.response?.data?.detail || '请检查文件格式是否正确'
+    }
+  } finally {
+    importingTrakt.value = false
+    event.target.value = ''
+  }
+}
+
+const handleBackupImport = async (event) => {
+  const file = event.target.files[0]
+  if (!file || !appStore.currentEmbyUser) return
+  
+  importingBackup.value = true
+  importResult.value = null
+  
+  try {
+    const result = await exportApi.importBackup(appStore.currentEmbyUser.Id, file)
+    const details = []
+    if (result.results?.history) {
+      details.push(`历史: ${result.results.history.imported} 条`)
+    }
+    if (result.results?.ratings) {
+      details.push(`评分: ${result.results.ratings.imported} 条`)
+    }
+    importResult.value = {
+      success: true,
+      message: '备份恢复成功！',
+      details: details.join('，')
+    }
+  } catch (e) {
+    importResult.value = {
+      success: false,
+      message: '恢复失败',
+      details: e.response?.data?.detail || '请检查备份文件是否正确'
+    }
+  } finally {
+    importingBackup.value = false
+    event.target.value = ''
+  }
+}
 </script>

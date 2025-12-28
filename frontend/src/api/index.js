@@ -122,6 +122,29 @@ export const ratingsApi = {
   getStats: (userId) => api.get('/ratings/stats', { params: { user_id: userId } }),
 }
 
+// Export API (数据导出)
+export const exportApi = {
+  exportHistory: (userId, format = 'json') => `/api/export/history?user_id=${userId}&format=${format}`,
+  exportWatchlist: (format = 'json') => `/api/export/watchlist?format=${format}`,
+  exportRatings: (userId, format = 'json') => `/api/export/ratings?user_id=${userId}&format=${format}`,
+  exportLists: (userId) => `/api/export/lists?user_id=${userId}`,
+  exportFullBackup: (userId) => `/api/export/full-backup?user_id=${userId}`,
+  importTraktHistory: (userId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/import/trakt-history?user_id=${userId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  importBackup: (userId, file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post(`/import/backup?user_id=${userId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+}
+
 // Watchlist API
 export const watchlistApi = {
   getWatchlist: (mediaType) => api.get('/watchlist/', { params: { media_type: mediaType } }),
