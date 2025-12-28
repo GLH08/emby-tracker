@@ -178,6 +178,7 @@ export const statsApi = {
 // History API (本地存储的观看历史)
 export const historyApi = {
   getHistory: (userId, params) => api.get('/history/', { params: { user_id: userId, ...params } }),
+  getGenres: (userId) => api.get('/history/genres', { params: { user_id: userId } }),
   syncFromEmby: (userId) => api.post('/history/sync', null, { params: { user_id: userId } }),
   addHistory: (userId, data) => api.post('/history/', data, { params: { user_id: userId } }),
   updateHistory: (historyId, data) => api.put(`/history/${historyId}`, data),

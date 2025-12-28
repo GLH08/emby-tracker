@@ -25,6 +25,19 @@
           <span>{{ syncing ? '同步中...' : '从 Emby 同步' }}</span>
         </button>
         
+        <!-- 高级筛选按钮 -->
+        <button 
+          @click="showFilters = !showFilters"
+          class="btn flex items-center space-x-2"
+          :class="hasActiveFilters ? 'btn-primary' : 'btn-secondary'"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+          </svg>
+          <span>高级筛选</span>
+          <span v-if="hasActiveFilters" class="px-1.5 py-0.5 bg-white/20 rounded text-xs">{{ activeFilterCount }}</span>
+        </button>
+        
         <!-- 手动添加 -->
         <button @click="showAddModal = true" class="btn btn-primary flex items-center space-x-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,14 +45,132 @@
           </svg>
           <span>手动添加</span>
         </button>
-        
-        <!-- 类型筛选 -->
-        <select v-model="mediaType" @change="fetchHistory(true)" class="input w-auto">
-          <option value="all">全部类型</option>
-          <option value="Movie">电影</option>
-          <option value="Episode">剧集</option>
-        </select>
       </div>
+    </div>
+
+    <!-- 高级筛选面板 -->
+    <transition name="slide">
+      <div v-if="showFilters" class="card p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- 搜索 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">搜索标题</label>
+            <input 
+              v-model="filters.search" 
+              type="text" 
+              class="input w-full" 
+              placeholder="输入关键词..."
+              @keyup.enter="applyFilters"
+            />
+          </div>
+          
+          <!-- 类型 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">媒体类型</label>
+            <select v-model="filters.mediaType" class="input w-full">
+              <option value="all">全部类型</option>
+              <option value="Movie">电影</option>
+              <option value="Episode">剧集</option>
+            </select>
+          </div>
+          
+          <!-- 类型（Genre） -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">影片类型</label>
+            <select v-model="filters.genre" class="input w-full">
+              <option value="">全部</option>
+              <option v-for="g in availableGenres" :key="g" :value="g">{{ g }}</option>
+            </select>
+          </div>
+          
+          <!-- 观看状态 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">观看状态</label>
+            <select v-model="filters.watched" class="input w-full">
+              <option value="">全部</option>
+              <option value="true">已看完</option>
+              <option value="false">未看完</option>
+            </select>
+          </div>
+          
+          <!-- 年份范围 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年份范围</label>
+            <div class="flex items-center space-x-2">
+              <input v-model.number="filters.yearFrom" type="number" class="input w-full" placeholder="从" min="1900" max="2030" />
+              <span class="text-gray-400">-</span>
+              <input v-model.number="filters.yearTo" type="number" class="input w-full" placeholder="到" min="1900" max="2030" />
+            </div>
+          </div>
+          
+          <!-- 评分范围 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">评分范围</label>
+            <div class="flex items-center space-x-2">
+              <input v-model.number="filters.ratingFrom" type="number" class="input w-full" placeholder="从" min="0" max="10" step="0.1" />
+              <span class="text-gray-400">-</span>
+              <input v-model.number="filters.ratingTo" type="number" class="input w-full" placeholder="到" min="0" max="10" step="0.1" />
+            </div>
+          </div>
+          
+          <!-- 观看日期范围 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">观看日期</label>
+            <div class="flex items-center space-x-2">
+              <input v-model="filters.dateFrom" type="date" class="input w-full" />
+              <span class="text-gray-400">-</span>
+              <input v-model="filters.dateTo" type="date" class="input w-full" />
+            </div>
+          </div>
+          
+          <!-- 排序 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">排序方式</label>
+            <div class="flex items-center space-x-2">
+              <select v-model="filters.sortBy" class="input flex-1">
+                <option value="watched_at">观看时间</option>
+                <option value="rating">评分</option>
+                <option value="year">年份</option>
+                <option value="runtime">时长</option>
+                <option value="title">标题</option>
+              </select>
+              <button 
+                @click="filters.sortOrder = filters.sortOrder === 'desc' ? 'asc' : 'desc'"
+                class="btn btn-secondary p-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" :class="{ 'rotate-180': filters.sortOrder === 'asc' }">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 筛选操作按钮 -->
+        <div class="flex items-center justify-end space-x-3 mt-4 pt-4 border-t border-gray-100 dark:border-dark-100">
+          <button @click="resetFilters" class="btn btn-secondary">重置</button>
+          <button @click="applyFilters" class="btn btn-primary">应用筛选</button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- 当前筛选标签 -->
+    <div v-if="hasActiveFilters && !showFilters" class="flex flex-wrap gap-2 mb-6">
+      <span 
+        v-for="tag in filterTags" 
+        :key="tag.key"
+        class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+      >
+        {{ tag.label }}
+        <button @click="removeFilter(tag.key)" class="ml-2 hover:text-primary-900">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </span>
+      <button @click="resetFilters" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+        清除全部
+      </button>
     </div>
 
     <!-- 同步结果提示 -->
@@ -261,7 +392,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useAppStore } from '../stores/app'
 import { historyApi } from '../api'
 
@@ -270,17 +401,120 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const syncing = ref(false)
 const historyItems = ref([])
-const mediaType = ref('all')
 const page = ref(1)
 const pageSize = 50
 const totalCount = ref(0)
 const syncResult = ref(null)
 const stats = ref({ total_minutes: 0 })
 
+// 高级筛选
+const showFilters = ref(false)
+const availableGenres = ref([])
+const filters = reactive({
+  search: '',
+  mediaType: 'all',
+  genre: '',
+  watched: '',
+  yearFrom: null,
+  yearTo: null,
+  ratingFrom: null,
+  ratingTo: null,
+  dateFrom: '',
+  dateTo: '',
+  sortBy: 'watched_at',
+  sortOrder: 'desc',
+})
+
 // 弹窗状态
 const showAddModal = ref(false)
 const editingItem = ref(null)
 const formData = ref(getDefaultFormData())
+
+// 计算是否有激活的筛选
+const hasActiveFilters = computed(() => {
+  return filters.search || 
+    filters.mediaType !== 'all' || 
+    filters.genre || 
+    filters.watched !== '' ||
+    filters.yearFrom || 
+    filters.yearTo || 
+    filters.ratingFrom !== null || 
+    filters.ratingTo !== null ||
+    filters.dateFrom || 
+    filters.dateTo
+})
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (filters.search) count++
+  if (filters.mediaType !== 'all') count++
+  if (filters.genre) count++
+  if (filters.watched !== '') count++
+  if (filters.yearFrom || filters.yearTo) count++
+  if (filters.ratingFrom !== null || filters.ratingTo !== null) count++
+  if (filters.dateFrom || filters.dateTo) count++
+  return count
+})
+
+const filterTags = computed(() => {
+  const tags = []
+  if (filters.search) tags.push({ key: 'search', label: `搜索: ${filters.search}` })
+  if (filters.mediaType !== 'all') tags.push({ key: 'mediaType', label: filters.mediaType === 'Movie' ? '电影' : '剧集' })
+  if (filters.genre) tags.push({ key: 'genre', label: filters.genre })
+  if (filters.watched !== '') tags.push({ key: 'watched', label: filters.watched === 'true' ? '已看完' : '未看完' })
+  if (filters.yearFrom || filters.yearTo) {
+    const label = filters.yearFrom && filters.yearTo 
+      ? `${filters.yearFrom}-${filters.yearTo}年` 
+      : filters.yearFrom ? `${filters.yearFrom}年起` : `${filters.yearTo}年止`
+    tags.push({ key: 'year', label })
+  }
+  if (filters.ratingFrom !== null || filters.ratingTo !== null) {
+    const label = filters.ratingFrom !== null && filters.ratingTo !== null
+      ? `评分 ${filters.ratingFrom}-${filters.ratingTo}`
+      : filters.ratingFrom !== null ? `评分 ≥${filters.ratingFrom}` : `评分 ≤${filters.ratingTo}`
+    tags.push({ key: 'rating', label })
+  }
+  if (filters.dateFrom || filters.dateTo) {
+    const label = filters.dateFrom && filters.dateTo
+      ? `${filters.dateFrom} 至 ${filters.dateTo}`
+      : filters.dateFrom ? `${filters.dateFrom} 起` : `${filters.dateTo} 止`
+    tags.push({ key: 'date', label })
+  }
+  return tags
+})
+
+const removeFilter = (key) => {
+  switch (key) {
+    case 'search': filters.search = ''; break
+    case 'mediaType': filters.mediaType = 'all'; break
+    case 'genre': filters.genre = ''; break
+    case 'watched': filters.watched = ''; break
+    case 'year': filters.yearFrom = null; filters.yearTo = null; break
+    case 'rating': filters.ratingFrom = null; filters.ratingTo = null; break
+    case 'date': filters.dateFrom = ''; filters.dateTo = ''; break
+  }
+  applyFilters()
+}
+
+const resetFilters = () => {
+  filters.search = ''
+  filters.mediaType = 'all'
+  filters.genre = ''
+  filters.watched = ''
+  filters.yearFrom = null
+  filters.yearTo = null
+  filters.ratingFrom = null
+  filters.ratingTo = null
+  filters.dateFrom = ''
+  filters.dateTo = ''
+  filters.sortBy = 'watched_at'
+  filters.sortOrder = 'desc'
+  applyFilters()
+}
+
+const applyFilters = () => {
+  fetchHistory(true)
+}
 
 function getDefaultFormData() {
   return {
@@ -408,11 +642,26 @@ const fetchHistory = async (reset = false) => {
   loadingMore.value = !reset
   
   try {
-    const result = await historyApi.getHistory(appStore.currentEmbyUser.Id, {
-      media_type: mediaType.value,
+    const params = {
+      media_type: filters.mediaType,
       page: page.value,
       page_size: pageSize,
-    })
+      sort_by: filters.sortBy,
+      sort_order: filters.sortOrder,
+    }
+    
+    // 添加筛选参数
+    if (filters.search) params.search = filters.search
+    if (filters.genre) params.genre = filters.genre
+    if (filters.watched !== '') params.watched = filters.watched === 'true'
+    if (filters.yearFrom) params.year_from = filters.yearFrom
+    if (filters.yearTo) params.year_to = filters.yearTo
+    if (filters.ratingFrom !== null) params.rating_from = filters.ratingFrom
+    if (filters.ratingTo !== null) params.rating_to = filters.ratingTo
+    if (filters.dateFrom) params.date_from = filters.dateFrom
+    if (filters.dateTo) params.date_to = filters.dateTo
+    
+    const result = await historyApi.getHistory(appStore.currentEmbyUser.Id, params)
     
     if (reset) {
       historyItems.value = result.items
@@ -425,6 +674,12 @@ const fetchHistory = async (reset = false) => {
     // 获取统计
     const statsResult = await historyApi.getStats(appStore.currentEmbyUser.Id)
     stats.value = statsResult
+    
+    // 获取可用类型（仅首次）
+    if (availableGenres.value.length === 0) {
+      const genresResult = await historyApi.getGenres(appStore.currentEmbyUser.Id)
+      availableGenres.value = genresResult.genres
+    }
     
   } catch (e) {
     console.error('Failed to fetch history:', e)
