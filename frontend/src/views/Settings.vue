@@ -184,6 +184,99 @@
         </div>
       </section>
 
+      <!-- 媒体库同步管理 -->
+      <section class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">媒体库同步</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400">管理 Emby 媒体库数据的同步</p>
+          </div>
+        </div>
+        
+        <!-- 同步状态 -->
+        <div class="mb-4 p-4 bg-gray-50 dark:bg-dark-100 rounded-xl">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div 
+                class="w-3 h-3 rounded-full"
+                :class="librarySyncStatus.sync_status === 'running' ? 'bg-yellow-500 animate-pulse' : librarySyncStatus.sync_status === 'error' ? 'bg-red-500' : 'bg-green-500'"
+              ></div>
+              <div>
+                <p class="font-medium text-gray-900 dark:text-white">
+                  {{ librarySyncStatus.sync_status === 'running' ? '同步中...' : librarySyncStatus.sync_status === 'error' ? '同步失败' : librarySyncStatus.sync_status === 'never' ? '从未同步' : '已同步' }}
+                </p>
+                <p v-if="librarySyncStatus.last_sync_at" class="text-xs text-gray-500 dark:text-gray-400">
+                  上次同步: {{ formatSyncTime(librarySyncStatus.last_sync_at) }}
+                </p>
+                <p v-if="librarySyncStatus.error_message" class="text-xs text-red-500">
+                  {{ librarySyncStatus.error_message }}
+                </p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ appStore.librariesFromCache ? '使用缓存数据' : '实时数据' }}
+              </p>
+              <p v-if="appStore.librariesCacheTime" class="text-xs text-gray-400">
+                缓存于 {{ formatSyncTime(appStore.librariesCacheTime) }}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 媒体库列表 -->
+        <div class="mb-4 space-y-2">
+          <div 
+            v-for="lib in appStore.allowedLibraries" 
+            :key="lib.id"
+            class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-100 rounded-lg"
+          >
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                :class="lib.collection_type === 'movies' ? 'bg-purple-100 dark:bg-purple-900/30' : lib.collection_type === 'tvshows' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'"
+              >
+                <svg v-if="lib.collection_type === 'movies'" class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+                </svg>
+                <svg v-else-if="lib.collection_type === 'tvshows'" class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                <svg v-else class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                </svg>
+              </div>
+              <span class="font-medium text-gray-900 dark:text-white">{{ lib.name }}</span>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">{{ lib.item_count }} 项</span>
+          </div>
+        </div>
+        
+        <!-- 同步按钮 -->
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button 
+            @click="refreshLibraries"
+            class="btn btn-primary flex-1"
+            :disabled="librarySyncStatus.sync_status === 'running' || refreshingLibraries"
+          >
+            <svg class="w-5 h-5 mr-2" :class="{ 'animate-spin': refreshingLibraries }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            {{ refreshingLibraries ? '刷新中...' : '刷新媒体库' }}
+          </button>
+          <button 
+            @click="triggerFullSync"
+            class="btn btn-secondary"
+            :disabled="librarySyncStatus.sync_status === 'running' || fullSyncing"
+          >
+            {{ fullSyncing ? '同步中...' : '完整同步（含观看历史）' }}
+          </button>
+        </div>
+        
+        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          💡 媒体库数据会定时自动同步（间隔由 SYNC_INTERVAL_MINUTES 环境变量控制），也可手动刷新
+        </p>
+      </section>
+
       <!-- 外部评分同步 -->
       <section class="card p-6">
         <div class="flex items-center justify-between mb-4">
@@ -672,7 +765,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { authApi, heroApi, embyApi, exportApi, externalRatingsApi } from '../api'
+import { authApi, heroApi, embyApi, exportApi, externalRatingsApi, syncApi } from '../api'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -715,6 +808,15 @@ const importingTrakt = ref(false)
 const importingBackup = ref(false)
 const importResult = ref(null)
 
+// 媒体库同步
+const librarySyncStatus = ref({
+  last_sync_at: null,
+  sync_status: 'idle',
+  error_message: null,
+})
+const refreshingLibraries = ref(false)
+const fullSyncing = ref(false)
+
 // 外部评分同步
 const omdbStatus = ref(null)
 const cachedRatingsCount = ref(0)
@@ -729,6 +831,66 @@ const syncStatus = ref({
   error: null
 })
 let syncPollInterval = null
+
+// 媒体库同步方法
+const fetchLibrarySyncStatus = async () => {
+  if (!appStore.currentEmbyUser) return
+  try {
+    const status = await syncApi.getUserStatus(appStore.currentEmbyUser.Id)
+    librarySyncStatus.value = status
+  } catch (e) {
+    console.error('获取同步状态失败:', e)
+  }
+}
+
+const refreshLibraries = async () => {
+  if (!appStore.currentEmbyUser) return
+  refreshingLibraries.value = true
+  try {
+    await appStore.refreshLibraries()
+    await fetchLibrarySyncStatus()
+  } catch (e) {
+    console.error('刷新媒体库失败:', e)
+    alert('刷新失败: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    refreshingLibraries.value = false
+  }
+}
+
+const triggerFullSync = async () => {
+  if (!appStore.currentEmbyUser) return
+  fullSyncing.value = true
+  try {
+    await syncApi.triggerSync(appStore.currentEmbyUser.Id)
+    // 轮询状态
+    const pollStatus = setInterval(async () => {
+      const status = await syncApi.getUserStatus(appStore.currentEmbyUser.Id)
+      librarySyncStatus.value = status
+      if (status.sync_status !== 'running') {
+        clearInterval(pollStatus)
+        fullSyncing.value = false
+        await appStore.fetchLibraries()
+      }
+    }, 2000)
+  } catch (e) {
+    console.error('触发同步失败:', e)
+    alert('同步失败: ' + (e.response?.data?.detail || e.message))
+    fullSyncing.value = false
+  }
+}
+
+const formatSyncTime = (isoString) => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const now = new Date()
+  const diff = now - date
+  
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
+  
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+}
 
 const selectEmbyUser = (user) => {
   appStore.setCurrentEmbyUser(user)
@@ -921,6 +1083,7 @@ onMounted(() => {
   fetchOmdbStatus()
   fetchCachedCount()
   fetchSyncStatus()
+  fetchLibrarySyncStatus()
 })
 
 // 导入处理函数

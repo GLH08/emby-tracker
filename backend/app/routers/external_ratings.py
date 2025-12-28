@@ -139,11 +139,10 @@ async def sync_external_ratings_task(user_id: str, force: bool = False):
     global _sync_status
     
     try:
-        # 获取所有电影
+        # 获取所有电影（get_items 默认已启用 Recursive）
         movies = await emby_service.get_items(
             user_id=user_id,
             include_item_types="Movie",
-            recursive=True,
             limit=10000
         )
         
@@ -151,7 +150,6 @@ async def sync_external_ratings_task(user_id: str, force: bool = False):
         series = await emby_service.get_items(
             user_id=user_id,
             include_item_types="Series",
-            recursive=True,
             limit=10000
         )
         

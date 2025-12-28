@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { embyApi, configApi, authApi, externalRatingsApi } from '../api'
+import { embyApi, configApi, authApi, externalRatingsApi, syncApi } from '../api'
 
 export const useAppStore = defineStore('app', () => {
   // 状态
@@ -17,6 +17,8 @@ export const useAppStore = defineStore('app', () => {
   const embyUsers = ref([])
   const currentEmbyUser = ref(null)
   const libraries = ref([])
+  const librariesFromCache = ref(false)
+  const librariesCacheTime = ref(null)
   const selectedLibraryId = ref(localStorage.getItem('selectedLibraryId') || null)
   const loading = ref(false)
   const error = ref(null)
@@ -138,12 +140,38 @@ export const useAppStore = defineStore('app', () => {
     fetchLibraries()
   }
 
-  const fetchLibraries = async () => {
+  const fetchLibraries = async (useCache = true) => {
     if (!currentEmbyUser.value) return
     try {
-      libraries.value = await embyApi.getLibraries(currentEmbyUser.value.Id)
+      // 使用新的同步 API 获取媒体库（支持缓存）
+      const result = await syncApi.getLibraries(currentEmbyUser.value.Id, useCache)
+      libraries.value = result.libraries || []
+      librariesFromCache.value = result.from_cache || false
+      librariesCacheTime.value = result.cache_time || null
     } catch (e) {
       console.error('Failed to fetch libraries:', e)
+      // 降级到原来的 API
+      try {
+        libraries.value = await embyApi.getLibraries(currentEmbyUser.value.Id)
+        librariesFromCache.value = false
+        librariesCacheTime.value = null
+      } catch (e2) {
+        console.error('Fallback also failed:', e2)
+      }
+    }
+  }
+
+  const refreshLibraries = async () => {
+    if (!currentEmbyUser.value) return
+    try {
+      await syncApi.refreshLibraries(currentEmbyUser.value.Id)
+      // 等待一小段时间让后台任务完成
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      // 重新获取（不使用缓存）
+      await fetchLibraries(false)
+    } catch (e) {
+      console.error('Failed to refresh libraries:', e)
+      throw e
     }
   }
 
@@ -235,6 +263,8 @@ export const useAppStore = defineStore('app', () => {
     embyUsers,
     currentEmbyUser,
     libraries,
+    librariesFromCache,
+    librariesCacheTime,
     selectedLibraryId,
     loading,
     error,
@@ -257,6 +287,7 @@ export const useAppStore = defineStore('app', () => {
     fetchEmbyUsers,
     setCurrentEmbyUser,
     fetchLibraries,
+    refreshLibraries,
     selectLibrary,
     getEmbyImageUrl,
     getTmdbImageUrl,

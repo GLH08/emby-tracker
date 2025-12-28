@@ -58,7 +58,7 @@ async def get_overview_stats(
                 )
                 result["movies"]["total"] += total_items.total_count
                 
-                # 已看电影
+                # 已看电影（包括完全看完和正在观看的）
                 watched_items = await emby_service.get_items(
                     user_id=user_id,
                     parent_id=library.id,
@@ -67,6 +67,21 @@ async def get_overview_stats(
                     limit=500,
                 )
                 result["movies"]["watched"] += watched_items.total_count
+                
+                # 正在观看的电影（有播放进度但未完成）
+                # 通过 Filters=IsResumable 获取
+                try:
+                    resume_items = await emby_service.get_items(
+                        user_id=user_id,
+                        parent_id=library.id,
+                        include_item_types="Movie",
+                        filters="IsResumable",
+                        limit=100,
+                    )
+                    # 正在观看的也计入已看数量
+                    result["movies"]["watched"] += resume_items.total_count
+                except:
+                    pass
                 
                 # 计算观看时长
                 for item in watched_items.items:
@@ -101,6 +116,20 @@ async def get_overview_stats(
                     is_played=True,
                     limit=500,
                 )
+                result["shows"]["episodes_watched"] += watched_episodes.total_count
+                
+                # 正在观看的剧集
+                try:
+                    resume_episodes = await emby_service.get_items(
+                        user_id=user_id,
+                        parent_id=library.id,
+                        include_item_types="Episode",
+                        filters="IsResumable",
+                        limit=100,
+                    )
+                    result["shows"]["episodes_watched"] += resume_episodes.total_count
+                except:
+                    pass
                 result["shows"]["episodes_watched"] += watched_episodes.total_count
                 
                 # 计算观看时长

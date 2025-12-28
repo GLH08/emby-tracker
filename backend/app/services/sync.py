@@ -3,9 +3,9 @@ import asyncio
 import logging
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, delete
 from app.database import async_session_maker
-from app.models import WatchHistory
+from app.models import WatchHistory, LibraryCache, LibrarySyncStatus
 from app.services.emby import emby_service
 from app.config import get_settings
 
@@ -204,7 +204,7 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
 
 
 async def sync_all_users():
-    """同步所有允许的用户的观看历史"""
+    """同步所有允许的用户的观看历史和媒体库"""
     global _is_running
     
     if _is_running:
@@ -212,7 +212,7 @@ async def sync_all_users():
         return
     
     _is_running = True
-    logger.info("开始同步所有用户观看历史...")
+    logger.info("开始同步所有用户数据...")
     
     try:
         # 获取所有 Emby 用户
@@ -228,11 +228,20 @@ async def sync_all_users():
             for user in users:
                 user_id = user.get("Id") if isinstance(user, dict) else user.Id
                 user_name = user.get("Name") if isinstance(user, dict) else user.Name
+                
+                # 同步媒体库
+                try:
+                    lib_result = await sync_user_libraries(user_id, db)
+                    logger.info(f"用户 {user_name} 媒体库同步完成: {lib_result['synced']} 个")
+                except Exception as e:
+                    logger.error(f"用户 {user_name} 媒体库同步失败: {e}")
+                
+                # 同步观看历史
                 try:
                     result = await sync_user_history(user_id, db)
-                    logger.info(f"用户 {user_name} 同步完成: 新增 {result['added']}, 更新 {result['updated']}")
+                    logger.info(f"用户 {user_name} 观看历史同步完成: 新增 {result['added']}, 更新 {result['updated']}")
                 except Exception as e:
-                    logger.error(f"用户 {user_name} 同步失败: {e}")
+                    logger.error(f"用户 {user_name} 观看历史同步失败: {e}")
         
         logger.info("所有用户同步完成")
         
@@ -277,3 +286,155 @@ def stop_sync_scheduler():
         _sync_task.cancel()
         _sync_task = None
         logger.info("同步调度器已停止")
+
+
+async def sync_user_libraries(user_id: str, db: AsyncSession) -> dict:
+    """同步单个用户的媒体库信息"""
+    synced = 0
+    
+    try:
+        # 获取用户的媒体库列表
+        libraries = await emby_service.get_libraries(user_id)
+        
+        # 删除该用户旧的缓存
+        await db.execute(
+            delete(LibraryCache).where(LibraryCache.user_id == user_id)
+        )
+        
+        for library in libraries:
+            # 获取媒体库中的项目数量
+            item_count = 0
+            try:
+                if library.collection_type in ["movies", "tvshows", "music", "musicvideos", "homevideos"]:
+                    # 获取实际数量
+                    items = await emby_service.get_items(
+                        user_id=user_id,
+                        parent_id=library.id,
+                        limit=1,
+                    )
+                    item_count = items.total_count
+                else:
+                    item_count = library.item_count or 0
+            except Exception as e:
+                logger.warning(f"获取媒体库 {library.name} 数量失败: {e}")
+                item_count = library.item_count or 0
+            
+            # 创建缓存记录
+            cache_record = LibraryCache(
+                user_id=user_id,
+                library_id=library.id,
+                library_name=library.name,
+                collection_type=library.collection_type or "",
+                item_count=item_count,
+            )
+            db.add(cache_record)
+            synced += 1
+        
+        # 更新同步状态
+        status_result = await db.execute(
+            select(LibrarySyncStatus).where(LibrarySyncStatus.user_id == user_id)
+        )
+        status = status_result.scalar_one_or_none()
+        
+        if status:
+            status.last_sync_at = datetime.utcnow()
+            status.sync_status = "idle"
+            status.error_message = None
+        else:
+            status = LibrarySyncStatus(
+                user_id=user_id,
+                last_sync_at=datetime.utcnow(),
+                sync_status="idle",
+            )
+            db.add(status)
+        
+        await db.commit()
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"同步用户 {user_id} 媒体库失败: {e}")
+        
+        # 更新错误状态
+        try:
+            async with async_session_maker() as error_db:
+                status_result = await error_db.execute(
+                    select(LibrarySyncStatus).where(LibrarySyncStatus.user_id == user_id)
+                )
+                status = status_result.scalar_one_or_none()
+                
+                if status:
+                    status.sync_status = "error"
+                    status.error_message = str(e)
+                else:
+                    status = LibrarySyncStatus(
+                        user_id=user_id,
+                        sync_status="error",
+                        error_message=str(e),
+                    )
+                    error_db.add(status)
+                
+                await error_db.commit()
+        except:
+            pass
+        
+        raise
+    
+    return {"synced": synced}
+
+
+async def sync_all_libraries():
+    """同步所有用户的媒体库信息"""
+    logger.info("开始同步所有用户媒体库...")
+    
+    try:
+        # 获取所有 Emby 用户
+        users = await emby_service.get_users()
+        
+        # 过滤允许的用户
+        allowed_ids = settings.allowed_emby_user_ids
+        if allowed_ids:
+            users = [u for u in users if u.get("Id") in allowed_ids or u.get("Name") in allowed_ids]
+        
+        async with async_session_maker() as db:
+            for user in users:
+                user_id = user.get("Id") if isinstance(user, dict) else user.Id
+                user_name = user.get("Name") if isinstance(user, dict) else user.Name
+                try:
+                    result = await sync_user_libraries(user_id, db)
+                    logger.info(f"用户 {user_name} 媒体库同步完成: {result['synced']} 个媒体库")
+                except Exception as e:
+                    logger.error(f"用户 {user_name} 媒体库同步失败: {e}")
+        
+        logger.info("所有用户媒体库同步完成")
+        
+    except Exception as e:
+        logger.error(f"媒体库同步任务失败: {e}")
+
+
+async def get_cached_libraries(user_id: str, db: AsyncSession) -> list:
+    """获取缓存的媒体库列表"""
+    result = await db.execute(
+        select(LibraryCache).where(LibraryCache.user_id == user_id)
+    )
+    return result.scalars().all()
+
+
+async def get_sync_status(user_id: str, db: AsyncSession) -> dict:
+    """获取同步状态"""
+    result = await db.execute(
+        select(LibrarySyncStatus).where(LibrarySyncStatus.user_id == user_id)
+    )
+    status = result.scalar_one_or_none()
+    
+    if status:
+        return {
+            "last_sync_at": status.last_sync_at.isoformat() if status.last_sync_at else None,
+            "sync_status": status.sync_status,
+            "error_message": status.error_message,
+        }
+    
+    return {
+        "last_sync_at": None,
+        "sync_status": "never",
+        "error_message": None,
+    }

@@ -301,7 +301,16 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="font-medium text-gray-900 dark:text-white truncate">{{ getRecentItemTitle(item) }}</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">{{ getRecentItemSubtitle(item) }}</p>
+              <div class="flex items-center space-x-2">
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ getRecentItemSubtitle(item) }}</p>
+                <!-- 进度条（未完成时显示） -->
+                <div v-if="item.progress_percent > 0 && item.progress_percent < 100" class="flex items-center space-x-1">
+                  <div class="w-12 h-1.5 bg-gray-200 dark:bg-dark-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-primary-500 rounded-full" :style="{ width: `${item.progress_percent}%` }"></div>
+                  </div>
+                  <span class="text-xs text-primary-500">{{ Math.round(item.progress_percent) }}%</span>
+                </div>
+              </div>
             </div>
             <span class="text-xs text-gray-400">{{ item.runtime_minutes }}分钟</span>
           </router-link>

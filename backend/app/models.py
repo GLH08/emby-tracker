@@ -214,3 +214,33 @@ class ExternalRating(Base):
     # 缓存时间
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class LibraryCache(Base):
+    """媒体库缓存"""
+    __tablename__ = "library_cache"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True)  # Emby 用户 ID
+    library_id = Column(String(100), index=True)  # 媒体库 ID
+    library_name = Column(String(200))  # 媒体库名称
+    collection_type = Column(String(50))  # movies / tvshows / music 等
+    item_count = Column(Integer, default=0)  # 媒体数量
+    
+    # 缓存时间
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class LibrarySyncStatus(Base):
+    """媒体库同步状态"""
+    __tablename__ = "library_sync_status"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True)  # Emby 用户 ID
+    last_sync_at = Column(DateTime, nullable=True)  # 最后同步时间
+    sync_status = Column(String(20), default="idle")  # idle / running / error
+    error_message = Column(Text, nullable=True)  # 错误信息
+    
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

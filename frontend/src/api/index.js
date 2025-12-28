@@ -237,4 +237,13 @@ export const externalRatingsApi = {
   getAllCached: (limit = 5000) => api.get('/external-ratings/cached', { params: { limit } }),
 }
 
+// Sync API (同步管理)
+export const syncApi = {
+  getStatus: () => api.get('/sync/status'),
+  getUserStatus: (userId) => api.get(`/sync/status/${userId}`),
+  triggerSync: (userId = null) => api.post('/sync/trigger', null, { params: userId ? { user_id: userId } : {} }),
+  getLibraries: (userId, useCache = true) => api.get(`/sync/libraries/${userId}`, { params: { use_cache: useCache } }),
+  refreshLibraries: (userId) => api.post(`/sync/libraries/${userId}/refresh`),
+}
+
 export default api

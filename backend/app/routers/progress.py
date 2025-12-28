@@ -52,15 +52,16 @@ async def get_shows_progress(
             total_episodes = 0
             seasons_info = []
             
-            # 获取季列表
+            # 获取季列表（返回 EmbyMediaItem 对象列表）
             seasons = await emby_service.get_seasons(user_id, series_id)
             
             for season in seasons:
-                if season.get("Name", "").startswith("Specials"):
+                # season 是 EmbyMediaItem 对象，使用属性访问
+                if season.name and season.name.startswith("Specials"):
                     continue  # 跳过特别篇
                     
-                season_id = season.get("Id")
-                season_number = season.get("IndexNumber", 0)
+                season_id = season.id
+                season_number = season.index_number or 0
                 
                 # 获取该季的集数
                 episodes = await emby_service.get_episodes(user_id, series_id, season_id)
@@ -83,11 +84,11 @@ async def get_shows_progress(
                 seasons_info.append({
                     "season_id": season_id,
                     "season_number": season_number,
-                    "season_name": season.get("Name"),
+                    "season_name": season.name,
                     "total_episodes": season_total,
                     "watched_episodes": season_watched_count,
                     "progress": round(season_watched_count / season_total * 100, 1) if season_total > 0 else 0,
-                    "poster_path": season.get("ImageTags", {}).get("Primary"),
+                    "poster_path": season.primary_image_tag,
                 })
             
             # 计算总进度
@@ -99,8 +100,8 @@ async def get_shows_progress(
             shows_progress.append({
                 "series_id": series_id,
                 "series_name": series_name or series_detail.name,
-                "poster_path": series_detail.image_tags.get("Primary") if series_detail.image_tags else None,
-                "backdrop_path": series_detail.backdrop_image_tags[0] if series_detail.backdrop_image_tags else None,
+                "poster_path": series_detail.primary_image_tag,
+                "backdrop_path": series_detail.backdrop_image_tag,
                 "total_episodes": total_episodes,
                 "watched_episodes": watched_count,
                 "progress": progress,
@@ -131,7 +132,7 @@ async def get_show_progress(
         # 从 Emby 获取剧集详情
         series_detail = await emby_service.get_item(user_id, series_id)
         
-        # 获取所有季
+        # 获取所有季（返回 EmbyMediaItem 对象列表）
         seasons = await emby_service.get_seasons(user_id, series_id)
         
         seasons_progress = []
@@ -139,19 +140,21 @@ async def get_show_progress(
         total_watched = 0
         
         for season in seasons:
-            season_id = season.get("Id")
-            season_number = season.get("IndexNumber", 0)
-            season_name = season.get("Name", f"第 {season_number} 季")
+            # season 是 EmbyMediaItem 对象
+            season_id = season.id
+            season_number = season.index_number or 0
+            season_name = season.name or f"第 {season_number} 季"
             
-            # 获取该季所有集
+            # 获取该季所有集（返回 EmbyMediaItem 对象列表）
             episodes = await emby_service.get_episodes(user_id, series_id, season_id)
             
             episodes_progress = []
             season_watched = 0
             
             for ep in episodes:
-                ep_id = ep.get("Id")
-                ep_number = ep.get("IndexNumber", 0)
+                # ep 是 EmbyMediaItem 对象
+                ep_id = ep.id
+                ep_number = ep.index_number or 0
                 
                 # 检查是否已看
                 watched_result = await db.execute(
@@ -172,13 +175,13 @@ async def get_show_progress(
                 episodes_progress.append({
                     "episode_id": ep_id,
                     "episode_number": ep_number,
-                    "episode_name": ep.get("Name"),
-                    "runtime": ep.get("RunTimeTicks", 0) // 600000000,  # 转换为分钟
+                    "episode_name": ep.name,
+                    "runtime": ep.runtime_ticks // 600000000 if ep.runtime_ticks else 0,  # 转换为分钟
                     "is_watched": is_watched,
                     "watched_at": watch_record.watched_at.isoformat() if watch_record and watch_record.watched_at else None,
-                    "progress_percent": watch_record.progress_percent if watch_record else 0,
-                    "overview": ep.get("Overview"),
-                    "still_path": ep.get("ImageTags", {}).get("Primary"),
+                    "progress_percent": watch_record.watch_progress if watch_record else 0,
+                    "overview": ep.overview,
+                    "still_path": ep.primary_image_tag,
                 })
             
             season_total = len(episodes)
@@ -193,7 +196,7 @@ async def get_show_progress(
                 "watched_episodes": season_watched,
                 "progress": round(season_watched / season_total * 100, 1) if season_total > 0 else 0,
                 "episodes": episodes_progress,
-                "poster_path": season.get("ImageTags", {}).get("Primary"),
+                "poster_path": season.primary_image_tag,
             })
         
         # 获取下一集
@@ -202,8 +205,8 @@ async def get_show_progress(
         return {
             "series_id": series_id,
             "series_name": series_detail.name,
-            "poster_path": series_detail.image_tags.get("Primary") if series_detail.image_tags else None,
-            "backdrop_path": series_detail.backdrop_image_tags[0] if series_detail.backdrop_image_tags else None,
+            "poster_path": series_detail.primary_image_tag,
+            "backdrop_path": series_detail.backdrop_image_tag,
             "total_episodes": total_episodes,
             "watched_episodes": total_watched,
             "progress": round(total_watched / total_episodes * 100, 1) if total_episodes > 0 else 0,
@@ -219,21 +222,23 @@ async def get_show_progress(
 async def get_next_episode(user_id: str, series_id: str, db: AsyncSession):
     """获取下一集未看的剧集"""
     try:
-        # 获取所有季
+        # 获取所有季（返回 EmbyMediaItem 对象列表）
         seasons = await emby_service.get_seasons(user_id, series_id)
         
-        for season in sorted(seasons, key=lambda x: x.get("IndexNumber", 0)):
-            if season.get("Name", "").startswith("Specials"):
+        for season in sorted(seasons, key=lambda x: x.index_number or 0):
+            # season 是 EmbyMediaItem 对象
+            if season.name and season.name.startswith("Specials"):
                 continue
                 
-            season_id = season.get("Id")
-            season_number = season.get("IndexNumber", 0)
+            season_id = season.id
+            season_number = season.index_number or 0
             
-            # 获取该季所有集
+            # 获取该季所有集（返回 EmbyMediaItem 对象列表）
             episodes = await emby_service.get_episodes(user_id, series_id, season_id)
             
-            for ep in sorted(episodes, key=lambda x: x.get("IndexNumber", 0)):
-                ep_id = ep.get("Id")
+            for ep in sorted(episodes, key=lambda x: x.index_number or 0):
+                # ep 是 EmbyMediaItem 对象
+                ep_id = ep.id
                 
                 # 检查是否已看
                 watched_result = await db.execute(
@@ -251,11 +256,11 @@ async def get_next_episode(user_id: str, series_id: str, db: AsyncSession):
                     return {
                         "episode_id": ep_id,
                         "season_number": season_number,
-                        "episode_number": ep.get("IndexNumber", 0),
-                        "episode_name": ep.get("Name"),
-                        "overview": ep.get("Overview"),
-                        "runtime": ep.get("RunTimeTicks", 0) // 600000000,
-                        "still_path": ep.get("ImageTags", {}).get("Primary"),
+                        "episode_number": ep.index_number or 0,
+                        "episode_name": ep.name,
+                        "overview": ep.overview,
+                        "runtime": ep.runtime_ticks // 600000000 if ep.runtime_ticks else 0,
+                        "still_path": ep.primary_image_tag,
                     }
         
         return None  # 全部看完
