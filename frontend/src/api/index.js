@@ -132,14 +132,14 @@ export const exportApi = {
   importTraktHistory: (userId, file) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post(`/import/trakt-history?user_id=${userId}`, formData, {
+    return api.post(`/export/import/trakt-history?user_id=${userId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
   importBackup: (userId, file) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post(`/import/backup?user_id=${userId}`, formData, {
+    return api.post(`/export/import/backup?user_id=${userId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },

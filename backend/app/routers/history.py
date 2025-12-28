@@ -71,10 +71,14 @@ async def get_history(
         query = query.where(WatchHistory.media_type == media_type)
         count_query = count_query.where(WatchHistory.media_type == media_type)
     
-    # 类型（genre）筛选
+    # 类型（genre）筛选 - 使用 JSON 字符串匹配（兼容 SQLite）
     if genre:
-        query = query.where(WatchHistory.genres.contains([genre]))
-        count_query = count_query.where(WatchHistory.genres.contains([genre]))
+        # SQLite 的 JSON 数组查询需要使用 LIKE 或 JSON 函数
+        # 这里使用 cast + like 的方式兼容 SQLite
+        from sqlalchemy import cast, String
+        genre_pattern = f'%"{genre}"%'
+        query = query.where(cast(WatchHistory.genres, String).like(genre_pattern))
+        count_query = count_query.where(cast(WatchHistory.genres, String).like(genre_pattern))
     
     # 年份范围筛选
     if year_from:
