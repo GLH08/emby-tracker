@@ -163,6 +163,15 @@
               >
                 进度
               </router-link>
+              <router-link 
+                to="/lists"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="isActiveLink('/lists') 
+                  ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400' 
+                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-100'"
+              >
+                列表
+              </router-link>
             </div>
 
             <!-- 右侧操作 -->

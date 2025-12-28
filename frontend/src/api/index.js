@@ -100,6 +100,28 @@ export const recommendApi = {
   getGenrePreferences: (userId) => api.get('/recommend/genre-preferences', { params: { user_id: userId } }),
 }
 
+// Lists API (自定义列表)
+export const listsApi = {
+  getLists: (userId) => api.get('/lists/', { params: { user_id: userId } }),
+  createList: (userId, data) => api.post('/lists/', data, { params: { user_id: userId } }),
+  getList: (listId, userId) => api.get(`/lists/${listId}`, { params: { user_id: userId } }),
+  updateList: (listId, userId, data) => api.put(`/lists/${listId}`, data, { params: { user_id: userId } }),
+  deleteList: (listId, userId) => api.delete(`/lists/${listId}`, { params: { user_id: userId } }),
+  addItem: (listId, userId, data) => api.post(`/lists/${listId}/items`, data, { params: { user_id: userId } }),
+  removeItem: (listId, itemId, userId) => api.delete(`/lists/${listId}/items/${itemId}`, { params: { user_id: userId } }),
+  reorderItems: (listId, userId, itemIds) => api.post(`/lists/${listId}/reorder`, itemIds, { params: { user_id: userId } }),
+}
+
+// Ratings API (用户评分)
+export const ratingsApi = {
+  getRatings: (userId, params) => api.get('/ratings/', { params: { user_id: userId, ...params } }),
+  createRating: (userId, data) => api.post('/ratings/', data, { params: { user_id: userId } }),
+  checkRating: (userId, params) => api.get('/ratings/check', { params: { user_id: userId, ...params } }),
+  updateRating: (ratingId, userId, data) => api.put(`/ratings/${ratingId}`, data, { params: { user_id: userId } }),
+  deleteRating: (ratingId, userId) => api.delete(`/ratings/${ratingId}`, { params: { user_id: userId } }),
+  getStats: (userId) => api.get('/ratings/stats', { params: { user_id: userId } }),
+}
+
 // Watchlist API
 export const watchlistApi = {
   getWatchlist: (mediaType) => api.get('/watchlist/', { params: { media_type: mediaType } }),

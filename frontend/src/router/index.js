@@ -96,6 +96,16 @@ const routes = [
     name: 'Progress',
     component: () => import('../views/Progress.vue'),
   },
+  {
+    path: '/lists',
+    name: 'Lists',
+    component: () => import('../views/Lists.vue'),
+  },
+  {
+    path: '/list/:id',
+    name: 'ListDetail',
+    component: () => import('../views/ListDetail.vue'),
+  },
 ]
 
 const router = createRouter({

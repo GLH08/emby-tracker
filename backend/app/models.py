@@ -105,3 +105,55 @@ class HeroSlide(Base):
     
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class CustomList(Base):
+    """自定义列表"""
+    __tablename__ = "custom_lists"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True)  # Emby 用户 ID
+    name = Column(String(200))
+    description = Column(Text, nullable=True)
+    cover_image = Column(String(1000), nullable=True)  # 封面图 URL
+    is_public = Column(Boolean, default=False)  # 是否公开
+    sort_order = Column(Integer, default=0)
+    
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class CustomListItem(Base):
+    """自定义列表项"""
+    __tablename__ = "custom_list_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    list_id = Column(Integer, index=True)  # 关联的列表 ID
+    emby_id = Column(String(100), nullable=True)
+    tmdb_id = Column(Integer, nullable=True)
+    media_type = Column(String(20))  # movie / tv
+    title = Column(String(500))
+    poster_path = Column(String(500), nullable=True)
+    year = Column(Integer, nullable=True)
+    vote_average = Column(Float, nullable=True)
+    sort_order = Column(Integer, default=0)
+    note = Column(Text, nullable=True)  # 用户备注
+    
+    added_at = Column(DateTime, server_default=func.now())
+
+
+class UserRating(Base):
+    """用户评分"""
+    __tablename__ = "user_ratings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True)  # Emby 用户 ID
+    emby_id = Column(String(100), nullable=True)
+    tmdb_id = Column(Integer, nullable=True)
+    media_type = Column(String(20))  # movie / tv / episode
+    title = Column(String(500))
+    rating = Column(Integer)  # 1-10 分
+    review = Column(Text, nullable=True)  # 短评
+    
+    rated_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
