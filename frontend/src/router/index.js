@@ -106,6 +106,11 @@ const routes = [
     name: 'ListDetail',
     component: () => import('../views/ListDetail.vue'),
   },
+  {
+    path: '/yearly-review',
+    name: 'YearlyReview',
+    component: () => import('../views/YearlyReview.vue'),
+  },
 ]
 
 const router = createRouter({

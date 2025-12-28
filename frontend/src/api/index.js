@@ -172,6 +172,7 @@ export const statsApi = {
   getStreak: (userId) => api.get(`/stats/streak/${userId}`),
   getMonthlyStats: (userId, year) => api.get(`/stats/monthly/${userId}`, { params: { year } }),
   getWeekdayStats: (userId) => api.get(`/stats/weekday/${userId}`),
+  getYearlyReview: (userId, year) => api.get(`/stats/yearly-review/${userId}`, { params: { year } }),
 }
 
 // History API (本地存储的观看历史)

@@ -771,3 +771,257 @@ async def get_weekday_stats(
         print(f"Error fetching weekday stats: {e}")
     
     return {"weekdays": list(weekday_data.values())}
+
+
+@router.get("/yearly-review/{user_id}")
+async def get_yearly_review(
+    user_id: str,
+    year: int = Query(None, description="年份，默认当前年"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取年度回顾 - 类似 Spotify Wrapped / Trakt Year in Review
+    """
+    if year is None:
+        year = datetime.now().year
+    
+    start_date = datetime(year, 1, 1)
+    end_date = datetime(year, 12, 31, 23, 59, 59)
+    
+    review = {
+        "year": year,
+        "summary": {
+            "total_movies": 0,
+            "total_episodes": 0,
+            "total_items": 0,
+            "total_watch_time_minutes": 0,
+            "total_watch_time_hours": 0,
+            "total_watch_time_days": 0,
+            "watch_days": 0,  # 有观看记录的天数
+            "average_per_day": 0,  # 平均每天观看数
+        },
+        "top_genres": [],  # 最爱类型
+        "top_movies": [],  # 评分最高的电影
+        "top_shows": [],  # 评分最高的剧集
+        "most_watched_series": [],  # 看得最多的剧集
+        "monthly_breakdown": [],  # 月度分布
+        "milestones": [],  # 里程碑
+        "first_watch": None,  # 年度第一部
+        "last_watch": None,  # 年度最后一部
+        "busiest_day": None,  # 最忙的一天
+        "favorite_time": None,  # 最爱观看时段
+        "longest_streak": 0,  # 最长连续观看天数
+    }
+    
+    try:
+        # 查询年度所有观看记录
+        result = await db.execute(
+            select(WatchHistory)
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.watched_at >= start_date,
+                    WatchHistory.watched_at <= end_date,
+                )
+            )
+            .order_by(WatchHistory.watched_at)
+        )
+        
+        items = result.scalars().all()
+        
+        if not items:
+            return review
+        
+        # 基础统计
+        genres_count = defaultdict(int)
+        series_count = defaultdict(lambda: {"name": "", "count": 0, "tmdb_id": None})
+        monthly_count = defaultdict(lambda: {"movies": 0, "episodes": 0, "watch_time": 0})
+        daily_count = defaultdict(int)
+        time_slots = {"morning": 0, "afternoon": 0, "evening": 0, "night": 0}
+        watch_dates = set()
+        
+        movies = []
+        shows = []
+        
+        for item in items:
+            # 总数统计
+            if item.media_type == "Movie":
+                review["summary"]["total_movies"] += 1
+                if item.community_rating:
+                    movies.append({
+                        "title": item.title,
+                        "year": item.year,
+                        "rating": item.community_rating,
+                        "tmdb_id": item.tmdb_id,
+                        "watched_at": item.watched_at.isoformat() if item.watched_at else None,
+                    })
+            elif item.media_type == "Episode":
+                review["summary"]["total_episodes"] += 1
+                # 统计剧集
+                if item.series_name:
+                    series_count[item.series_name]["name"] = item.series_name
+                    series_count[item.series_name]["count"] += 1
+                    if item.tmdb_id:
+                        series_count[item.series_name]["tmdb_id"] = item.tmdb_id
+            elif item.media_type == "Series":
+                if item.community_rating:
+                    shows.append({
+                        "title": item.title,
+                        "year": item.year,
+                        "rating": item.community_rating,
+                        "tmdb_id": item.tmdb_id,
+                    })
+            
+            review["summary"]["total_items"] += 1
+            
+            # 观看时长
+            if item.runtime_minutes:
+                review["summary"]["total_watch_time_minutes"] += item.runtime_minutes
+            
+            # 类型统计
+            if item.genres:
+                for genre in item.genres:
+                    genres_count[genre] += 1
+            
+            # 月度统计
+            if item.watched_at:
+                month = item.watched_at.month
+                if item.media_type == "Movie":
+                    monthly_count[month]["movies"] += 1
+                elif item.media_type == "Episode":
+                    monthly_count[month]["episodes"] += 1
+                if item.runtime_minutes:
+                    monthly_count[month]["watch_time"] += item.runtime_minutes
+                
+                # 日期统计
+                date_str = item.watched_at.strftime("%Y-%m-%d")
+                daily_count[date_str] += 1
+                watch_dates.add(item.watched_at.date())
+                
+                # 时段统计
+                hour = item.watched_at.hour
+                if 6 <= hour < 12:
+                    time_slots["morning"] += 1
+                elif 12 <= hour < 18:
+                    time_slots["afternoon"] += 1
+                elif 18 <= hour < 24:
+                    time_slots["evening"] += 1
+                else:
+                    time_slots["night"] += 1
+        
+        # 计算汇总数据
+        review["summary"]["total_watch_time_hours"] = round(review["summary"]["total_watch_time_minutes"] / 60, 1)
+        review["summary"]["total_watch_time_days"] = round(review["summary"]["total_watch_time_minutes"] / 1440, 1)
+        review["summary"]["watch_days"] = len(watch_dates)
+        
+        if review["summary"]["watch_days"] > 0:
+            review["summary"]["average_per_day"] = round(
+                review["summary"]["total_items"] / review["summary"]["watch_days"], 1
+            )
+        
+        # 最爱类型 (Top 5)
+        sorted_genres = sorted(genres_count.items(), key=lambda x: x[1], reverse=True)[:5]
+        review["top_genres"] = [{"name": g[0], "count": g[1]} for g in sorted_genres]
+        
+        # 评分最高的电影 (Top 5)
+        movies.sort(key=lambda x: x["rating"] or 0, reverse=True)
+        review["top_movies"] = movies[:5]
+        
+        # 评分最高的剧集 (Top 5)
+        shows.sort(key=lambda x: x["rating"] or 0, reverse=True)
+        review["top_shows"] = shows[:5]
+        
+        # 看得最多的剧集 (Top 5)
+        sorted_series = sorted(series_count.values(), key=lambda x: x["count"], reverse=True)[:5]
+        review["most_watched_series"] = sorted_series
+        
+        # 月度分布
+        month_names = ["", "一月", "二月", "三月", "四月", "五月", "六月", 
+                       "七月", "八月", "九月", "十月", "十一月", "十二月"]
+        review["monthly_breakdown"] = [
+            {
+                "month": i,
+                "name": month_names[i],
+                "movies": monthly_count[i]["movies"],
+                "episodes": monthly_count[i]["episodes"],
+                "total": monthly_count[i]["movies"] + monthly_count[i]["episodes"],
+                "watch_time_hours": round(monthly_count[i]["watch_time"] / 60, 1),
+            }
+            for i in range(1, 13)
+        ]
+        
+        # 第一部和最后一部
+        if items:
+            first = items[0]
+            review["first_watch"] = {
+                "title": first.title,
+                "type": first.media_type,
+                "date": first.watched_at.strftime("%Y-%m-%d") if first.watched_at else None,
+            }
+            last = items[-1]
+            review["last_watch"] = {
+                "title": last.title,
+                "type": last.media_type,
+                "date": last.watched_at.strftime("%Y-%m-%d") if last.watched_at else None,
+            }
+        
+        # 最忙的一天
+        if daily_count:
+            busiest = max(daily_count.items(), key=lambda x: x[1])
+            review["busiest_day"] = {"date": busiest[0], "count": busiest[1]}
+        
+        # 最爱时段
+        if time_slots:
+            time_labels = {
+                "morning": "早间 (6-12点)",
+                "afternoon": "下午 (12-18点)",
+                "evening": "晚间 (18-24点)",
+                "night": "深夜 (0-6点)",
+            }
+            favorite = max(time_slots.items(), key=lambda x: x[1])
+            review["favorite_time"] = {"slot": favorite[0], "label": time_labels[favorite[0]], "count": favorite[1]}
+        
+        # 最长连续天数
+        if watch_dates:
+            sorted_dates = sorted(watch_dates)
+            longest = 1
+            current = 1
+            for i in range(1, len(sorted_dates)):
+                if (sorted_dates[i] - sorted_dates[i-1]).days == 1:
+                    current += 1
+                    longest = max(longest, current)
+                else:
+                    current = 1
+            review["longest_streak"] = longest
+        
+        # 里程碑
+        milestones = []
+        total = review["summary"]["total_items"]
+        if total >= 10:
+            milestones.append({"type": "count", "value": 10, "label": "观看了 10 部作品"})
+        if total >= 50:
+            milestones.append({"type": "count", "value": 50, "label": "观看了 50 部作品"})
+        if total >= 100:
+            milestones.append({"type": "count", "value": 100, "label": "观看了 100 部作品"})
+        if total >= 200:
+            milestones.append({"type": "count", "value": 200, "label": "观看了 200 部作品"})
+        if total >= 500:
+            milestones.append({"type": "count", "value": 500, "label": "观看了 500 部作品"})
+        
+        hours = review["summary"]["total_watch_time_hours"]
+        if hours >= 24:
+            milestones.append({"type": "time", "value": 24, "label": "观看超过 1 天"})
+        if hours >= 168:
+            milestones.append({"type": "time", "value": 168, "label": "观看超过 1 周"})
+        if hours >= 720:
+            milestones.append({"type": "time", "value": 720, "label": "观看超过 1 个月"})
+        
+        if review["longest_streak"] >= 7:
+            milestones.append({"type": "streak", "value": 7, "label": f"连续观看 {review['longest_streak']} 天"})
+        
+        review["milestones"] = milestones
+        
+    except Exception as e:
+        print(f"Error fetching yearly review: {e}")
+    
+    return review
