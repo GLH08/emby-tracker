@@ -81,6 +81,28 @@ async def get_shows_progress(
                 )
                 season_watched_count = season_watched.scalar() or 0
                 
+                # 获取每集的观看状态
+                episodes_info = []
+                for ep in sorted(episodes, key=lambda x: x.index_number or 0):
+                    ep_watched_result = await db.execute(
+                        select(WatchHistory)
+                        .where(
+                            and_(
+                                WatchHistory.user_id == user_id,
+                                WatchHistory.emby_id == ep.id,
+                            )
+                        )
+                    )
+                    ep_record = ep_watched_result.scalar_one_or_none()
+                    
+                    episodes_info.append({
+                        "episode_id": ep.id,
+                        "episode_number": ep.index_number or 0,
+                        "episode_name": ep.name,
+                        "is_watched": ep_record is not None,
+                        "progress_percent": ep_record.watch_progress if ep_record else 0,
+                    })
+                
                 seasons_info.append({
                     "season_id": season_id,
                     "season_number": season_number,
@@ -89,6 +111,7 @@ async def get_shows_progress(
                     "watched_episodes": season_watched_count,
                     "progress": round(season_watched_count / season_total * 100, 1) if season_total > 0 else 0,
                     "poster_path": season.primary_image_tag,
+                    "episodes": episodes_info,
                 })
             
             # 计算总进度

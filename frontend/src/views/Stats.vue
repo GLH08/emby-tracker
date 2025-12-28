@@ -209,24 +209,26 @@
           <div v-if="totalTrendCount === 0" class="h-40 flex items-center justify-center text-gray-500 dark:text-gray-400">
             暂无数据
           </div>
-          <div v-else class="h-40 flex items-end space-x-1">
-            <div 
-              v-for="day in trends" 
-              :key="day.date"
-              class="flex-1 flex flex-col items-center"
-            >
+          <template v-else>
+            <div class="h-40 flex items-end space-x-0.5">
               <div 
-                class="w-full rounded-t transition-all hover:opacity-80 cursor-pointer"
-                :class="day.total > 0 ? 'bg-primary-500' : 'bg-gray-100 dark:bg-dark-100'"
-                :style="{ height: `${day.total > 0 ? Math.max((day.total / maxTrendCount) * 100, 8) : 4}%` }"
-                :title="`${day.date}: ${day.total} 次`"
-              ></div>
+                v-for="day in trends" 
+                :key="day.date"
+                class="flex-1 flex flex-col items-center justify-end h-full"
+              >
+                <div 
+                  class="w-full rounded-t transition-all hover:opacity-80 cursor-pointer min-h-[4px]"
+                  :class="day.total > 0 ? 'bg-primary-500' : 'bg-gray-200 dark:bg-dark-100'"
+                  :style="{ height: day.total > 0 ? `${Math.max((day.total / maxTrendCount) * 140, 12)}px` : '4px' }"
+                  :title="`${day.date}: ${day.total} 次`"
+                ></div>
+              </div>
             </div>
-          </div>
-          <div class="flex justify-between mt-2 text-xs text-gray-400">
-            <span>{{ trends[0]?.date?.slice(5) }}</span>
-            <span>{{ trends[trends.length - 1]?.date?.slice(5) }}</span>
-          </div>
+            <div class="flex justify-between mt-2 text-xs text-gray-400">
+              <span>{{ trends[0]?.date?.slice(5) }}</span>
+              <span>{{ trends[trends.length - 1]?.date?.slice(5) }}</span>
+            </div>
+          </template>
         </div>
 
         <div class="card p-6">
@@ -254,20 +256,30 @@
           <div v-if="totalWeekdayCount === 0" class="h-32 flex items-center justify-center text-gray-500 dark:text-gray-400">
             暂无数据
           </div>
-          <div v-else class="flex items-end justify-between h-32">
-            <div 
-              v-for="day in weekdayStats" 
-              :key="day.name"
-              class="flex flex-col items-center flex-1"
-            >
+          <template v-else>
+            <div class="flex items-end justify-between h-28">
               <div 
-                class="w-8 rounded-t bg-blue-500 transition-all hover:bg-blue-600"
-                :style="{ height: `${day.count > 0 ? Math.max((day.count / maxWeekdayCount) * 100, 8) : 4}%` }"
-              ></div>
-              <span class="text-xs text-gray-500 mt-2">{{ day.name }}</span>
-              <span class="text-xs text-gray-400">{{ day.count }}</span>
+                v-for="day in weekdayStats" 
+                :key="day.name"
+                class="flex flex-col items-center flex-1"
+              >
+                <div 
+                  class="w-8 rounded-t bg-blue-500 transition-all hover:bg-blue-600 min-h-[4px]"
+                  :style="{ height: day.count > 0 ? `${Math.max((day.count / maxWeekdayCount) * 100, 12)}px` : '4px' }"
+                ></div>
+              </div>
             </div>
-          </div>
+            <div class="flex justify-between mt-2">
+              <div 
+                v-for="day in weekdayStats" 
+                :key="day.name + '-label'"
+                class="flex flex-col items-center flex-1"
+              >
+                <span class="text-xs text-gray-500">{{ day.name }}</span>
+                <span class="text-xs text-gray-400">{{ day.count }}</span>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div class="card p-6">
@@ -305,20 +317,30 @@
             {{ ratingMeta.no_rating_count }} 部影片无评分数据
           </p>
         </div>
-        <div v-else class="flex items-end justify-between h-32">
-          <div 
-            v-for="(count, rating) in ratingStats" 
-            :key="rating"
-            class="flex flex-col items-center flex-1"
-          >
+        <template v-else>
+          <div class="flex items-end justify-between h-28">
             <div 
-              class="w-12 rounded-t bg-gradient-to-t from-yellow-500 to-orange-400 transition-all hover:opacity-80"
-              :style="{ height: `${count > 0 ? Math.max((count / maxRatingCount) * 100, 8) : 4}%` }"
-            ></div>
-            <span class="text-xs text-gray-500 mt-2">{{ rating }}</span>
-            <span class="text-xs text-gray-400">{{ count }}</span>
+              v-for="(count, rating) in ratingStats" 
+              :key="rating"
+              class="flex flex-col items-center flex-1"
+            >
+              <div 
+                class="w-10 rounded-t bg-gradient-to-t from-yellow-500 to-orange-400 transition-all hover:opacity-80 min-h-[4px]"
+                :style="{ height: count > 0 ? `${Math.max((count / maxRatingCount) * 100, 12)}px` : '4px' }"
+              ></div>
+            </div>
           </div>
-        </div>
+          <div class="flex justify-between mt-2">
+            <div 
+              v-for="(count, rating) in ratingStats" 
+              :key="rating + '-label'"
+              class="flex flex-col items-center flex-1"
+            >
+              <span class="text-xs text-gray-500">{{ rating }}</span>
+              <span class="text-xs text-gray-400">{{ count }}</span>
+            </div>
+          </div>
+        </template>
         <p v-if="ratingMeta.no_rating_count > 0 && totalRatings > 0" class="text-xs text-gray-400 mt-3 text-center">
           另有 {{ ratingMeta.no_rating_count }} 部影片无评分数据
         </p>

@@ -289,17 +289,22 @@
         <!-- API 状态 -->
         <div v-if="omdbStatus" class="mb-4 p-4 bg-gray-50 dark:bg-dark-100 rounded-xl">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">API 配额</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">API 配额（本次会话）</span>
             <span class="text-sm text-gray-500 dark:text-gray-400">
-              {{ omdbStatus.total_keys }} 个 Key，剩余 {{ omdbStatus.total_remaining }} 次请求
+              {{ omdbStatus.total_keys }} 个 Key
             </span>
           </div>
-          <div class="w-full bg-gray-200 dark:bg-dark-200 rounded-full h-2">
-            <div 
-              class="bg-primary-500 h-2 rounded-full transition-all"
-              :style="{ width: `${Math.min(100, (omdbStatus.total_remaining / (omdbStatus.total_keys * 1000)) * 100)}%` }"
-            ></div>
+          <div class="space-y-1">
+            <div v-for="key in omdbStatus.keys" :key="key.index" class="flex items-center text-xs">
+              <span class="w-16 text-gray-500">Key {{ key.index }}</span>
+              <span :class="key.exhausted ? 'text-red-500' : 'text-green-500'">
+                {{ key.exhausted ? '已耗尽' : `已用 ${key.used} 次` }}
+              </span>
+            </div>
           </div>
+          <p class="text-xs text-gray-400 mt-2">
+            💡 OMDb 免费 Key 每天限 1000 次，配额在 UTC 0 点重置。此处显示本次会话的使用情况。
+          </p>
         </div>
         
         <!-- 缓存统计 -->

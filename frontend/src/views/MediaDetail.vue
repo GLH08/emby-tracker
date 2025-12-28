@@ -50,63 +50,80 @@
           </div>
 
           <!-- 外部评分（IMDB/烂番茄/Metacritic） -->
-          <div v-if="externalRatings || loadingExternalRatings" class="flex flex-wrap items-center gap-4 mb-6">
+          <div v-if="externalRatings || loadingExternalRatings || tmdbData" class="flex flex-wrap items-center gap-4 mb-6">
             <div v-if="loadingExternalRatings" class="text-sm text-gray-500 dark:text-gray-400">
               加载评分中...
             </div>
-            <template v-else-if="externalRatings">
-              <!-- IMDB 评分 -->
+            <template v-else>
+              <!-- TMDB 链接 -->
               <a 
-                v-if="externalRatings.imdb_rating" 
-                :href="`https://www.imdb.com/title/${externalRatings.imdb_id}/`"
+                v-if="tmdbData?.id" 
+                :href="getTmdbUrl()"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-1.5 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors cursor-pointer"
+                class="flex items-center space-x-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer"
               >
-                <span class="font-bold text-yellow-600 dark:text-yellow-400 text-sm">IMDb</span>
-                <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.imdb_rating.toFixed(1) }}</span>
-                <span v-if="externalRatings.imdb_votes" class="text-xs text-gray-500 dark:text-gray-400">
-                  ({{ formatVotes(externalRatings.imdb_votes) }})
-                </span>
+                <span class="font-bold text-blue-600 dark:text-blue-400 text-sm">TMDB</span>
+                <span v-if="tmdbData.vote_average" class="font-semibold text-gray-900 dark:text-white">{{ tmdbData.vote_average.toFixed(1) }}</span>
                 <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                 </svg>
               </a>
               
-              <!-- 烂番茄 -->
-              <a 
-                v-if="externalRatings.rotten_tomatoes" 
-                :href="getRottenTomatoesUrl()"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
-                :class="externalRatings.rotten_tomatoes >= 60 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'"
-              >
-                <span class="text-lg">{{ externalRatings.rotten_tomatoes >= 60 ? '🍅' : '🥬' }}</span>
-                <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.rotten_tomatoes }}%</span>
-                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                </svg>
-              </a>
-              
-              <!-- Metacritic -->
-              <a 
-                v-if="externalRatings.metacritic" 
-                :href="getMetacriticUrl()"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
-                :class="getMetacriticClass(externalRatings.metacritic)"
-              >
-                <span class="font-bold text-xs px-1.5 py-0.5 rounded text-white"
-                  :class="getMetacriticBadgeClass(externalRatings.metacritic)">
-                  M
-                </span>
-                <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.metacritic }}</span>
-                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                </svg>
-              </a>
+              <template v-if="externalRatings">
+                <!-- IMDB 评分 -->
+                <a 
+                  v-if="externalRatings.imdb_rating" 
+                  :href="`https://www.imdb.com/title/${externalRatings.imdb_id}/`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-1.5 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors cursor-pointer"
+                >
+                  <span class="font-bold text-yellow-600 dark:text-yellow-400 text-sm">IMDb</span>
+                  <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.imdb_rating.toFixed(1) }}</span>
+                  <span v-if="externalRatings.imdb_votes" class="text-xs text-gray-500 dark:text-gray-400">
+                    ({{ formatVotes(externalRatings.imdb_votes) }})
+                  </span>
+                  <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                </a>
+                
+                <!-- 烂番茄 -->
+                <a 
+                  v-if="externalRatings.rotten_tomatoes" 
+                  :href="getRottenTomatoesUrl()"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
+                  :class="externalRatings.rotten_tomatoes >= 60 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20'"
+                >
+                  <span class="text-lg">{{ externalRatings.rotten_tomatoes >= 60 ? '🍅' : '🥬' }}</span>
+                  <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.rotten_tomatoes }}%</span>
+                  <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                </a>
+                
+                <!-- Metacritic -->
+                <a 
+                  v-if="externalRatings.metacritic" 
+                  :href="getMetacriticUrl()"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center space-x-2 px-3 py-1.5 rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
+                  :class="getMetacriticClass(externalRatings.metacritic)"
+                >
+                  <span class="font-bold text-xs px-1.5 py-0.5 rounded text-white"
+                    :class="getMetacriticBadgeClass(externalRatings.metacritic)">
+                    M
+                  </span>
+                  <span class="font-semibold text-gray-900 dark:text-white">{{ externalRatings.metacritic }}</span>
+                  <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                </a>
+              </template>
             </template>
           </div>
 
@@ -482,6 +499,13 @@ const getMetacriticUrl = () => {
   const title = encodeURIComponent(item.value.name)
   const type = props.type === 'movie' ? 'movie' : 'tv'
   return `https://www.metacritic.com/search/${title}/?page=1&category=${type}`
+}
+
+// 生成 TMDB URL
+const getTmdbUrl = () => {
+  if (!tmdbData.value?.id) return '#'
+  const type = props.type === 'movie' ? 'movie' : 'tv'
+  return `https://www.themoviedb.org/${type}/${tmdbData.value.id}`
 }
 
 const fetchItem = async () => {
