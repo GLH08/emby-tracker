@@ -101,6 +101,13 @@ export const statsApi = {
   getRatingStats: (userId, libraryIds, mediaType) => api.get(`/stats/ratings/${userId}`, { params: { library_ids: libraryIds, media_type: mediaType } }),
   getRecentWatched: (userId, libraryIds, mediaType, limit) => api.get(`/stats/recent/${userId}`, { params: { library_ids: libraryIds, media_type: mediaType, limit } }),
   getTopRated: (userId, libraryIds, mediaType, limit) => api.get(`/stats/top-rated/${userId}`, { params: { library_ids: libraryIds, media_type: mediaType, limit } }),
+  // 新增统计 API
+  getTrends: (userId, days = 30) => api.get(`/stats/trends/${userId}`, { params: { days } }),
+  getTimeDistribution: (userId) => api.get(`/stats/time-distribution/${userId}`),
+  getHeatmap: (userId, weeks = 12) => api.get(`/stats/heatmap/${userId}`, { params: { weeks } }),
+  getStreak: (userId) => api.get(`/stats/streak/${userId}`),
+  getMonthlyStats: (userId, year) => api.get(`/stats/monthly/${userId}`, { params: { year } }),
+  getWeekdayStats: (userId) => api.get(`/stats/weekday/${userId}`),
 }
 
 // History API (本地存储的观看历史)

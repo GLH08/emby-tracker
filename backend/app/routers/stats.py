@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_, extract
 from typing import Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -443,3 +443,331 @@ async def get_stats(
     stats.watchlist_count = result.scalar() or 0
     
     return stats
+
+
+@router.get("/trends/{user_id}")
+async def get_watch_trends(
+    user_id: str,
+    days: int = Query(30, ge=7, le=365, description="统计天数"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取观看趋势 - 每日观看数量
+    """
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    # 初始化每天的数据
+    daily_data = {}
+    current = start_date
+    while current <= end_date:
+        date_str = current.strftime("%Y-%m-%d")
+        daily_data[date_str] = {"movies": 0, "episodes": 0, "total": 0}
+        current += timedelta(days=1)
+    
+    try:
+        # 查询指定时间范围内的观看记录
+        result = await db.execute(
+            select(WatchHistory)
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.watched_at >= start_date,
+                    WatchHistory.watched_at <= end_date,
+                )
+            )
+        )
+        
+        for item in result.scalars().all():
+            if item.watched_at:
+                date_str = item.watched_at.strftime("%Y-%m-%d")
+                if date_str in daily_data:
+                    if item.media_type == "Movie":
+                        daily_data[date_str]["movies"] += 1
+                    elif item.media_type == "Episode":
+                        daily_data[date_str]["episodes"] += 1
+                    daily_data[date_str]["total"] += 1
+                    
+    except Exception as e:
+        print(f"Error fetching watch trends: {e}")
+    
+    # 转换为列表格式
+    trends = [
+        {"date": date, **data}
+        for date, data in sorted(daily_data.items())
+    ]
+    
+    return {"trends": trends, "days": days}
+
+
+@router.get("/time-distribution/{user_id}")
+async def get_time_distribution(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取观看时段分布 - 早/中/晚/深夜
+    """
+    distribution = {
+        "morning": {"label": "早间 (6-12点)", "count": 0, "hours": "06:00-12:00"},
+        "afternoon": {"label": "下午 (12-18点)", "count": 0, "hours": "12:00-18:00"},
+        "evening": {"label": "晚间 (18-24点)", "count": 0, "hours": "18:00-24:00"},
+        "night": {"label": "深夜 (0-6点)", "count": 0, "hours": "00:00-06:00"},
+    }
+    
+    try:
+        result = await db.execute(
+            select(WatchHistory)
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.watched_at.isnot(None),
+                )
+            )
+        )
+        
+        for item in result.scalars().all():
+            if item.watched_at:
+                hour = item.watched_at.hour
+                if 6 <= hour < 12:
+                    distribution["morning"]["count"] += 1
+                elif 12 <= hour < 18:
+                    distribution["afternoon"]["count"] += 1
+                elif 18 <= hour < 24:
+                    distribution["evening"]["count"] += 1
+                else:
+                    distribution["night"]["count"] += 1
+                    
+    except Exception as e:
+        print(f"Error fetching time distribution: {e}")
+    
+    return {"distribution": distribution}
+
+
+@router.get("/heatmap/{user_id}")
+async def get_watch_heatmap(
+    user_id: str,
+    weeks: int = Query(12, ge=4, le=52, description="统计周数"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取观看热力图数据 - 按周/日统计
+    """
+    end_date = datetime.now()
+    start_date = end_date - timedelta(weeks=weeks)
+    
+    # 初始化热力图数据
+    heatmap = []
+    
+    try:
+        result = await db.execute(
+            select(WatchHistory)
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.watched_at >= start_date,
+                    WatchHistory.watched_at <= end_date,
+                )
+            )
+        )
+        
+        # 按日期统计
+        daily_counts = defaultdict(int)
+        for item in result.scalars().all():
+            if item.watched_at:
+                date_str = item.watched_at.strftime("%Y-%m-%d")
+                daily_counts[date_str] += 1
+        
+        # 生成热力图数据
+        current = start_date
+        while current <= end_date:
+            date_str = current.strftime("%Y-%m-%d")
+            count = daily_counts.get(date_str, 0)
+            
+            # 计算强度等级 (0-4)
+            if count == 0:
+                level = 0
+            elif count <= 2:
+                level = 1
+            elif count <= 5:
+                level = 2
+            elif count <= 10:
+                level = 3
+            else:
+                level = 4
+            
+            heatmap.append({
+                "date": date_str,
+                "count": count,
+                "level": level,
+                "weekday": current.weekday(),  # 0=周一
+            })
+            current += timedelta(days=1)
+            
+    except Exception as e:
+        print(f"Error fetching heatmap: {e}")
+    
+    return {"heatmap": heatmap, "weeks": weeks}
+
+
+@router.get("/streak/{user_id}")
+async def get_watch_streak(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取观看连续天数统计
+    """
+    try:
+        result = await db.execute(
+            select(WatchHistory.watched_at)
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.watched_at.isnot(None),
+                )
+            )
+            .order_by(WatchHistory.watched_at.desc())
+        )
+        
+        # 获取所有观看日期（去重）
+        watch_dates = set()
+        for row in result.fetchall():
+            if row[0]:
+                watch_dates.add(row[0].date())
+        
+        if not watch_dates:
+            return {
+                "current_streak": 0,
+                "longest_streak": 0,
+                "total_watch_days": 0,
+            }
+        
+        # 计算当前连续天数
+        today = datetime.now().date()
+        current_streak = 0
+        check_date = today
+        
+        while check_date in watch_dates:
+            current_streak += 1
+            check_date -= timedelta(days=1)
+        
+        # 如果今天没看，检查昨天开始的连续
+        if current_streak == 0:
+            check_date = today - timedelta(days=1)
+            while check_date in watch_dates:
+                current_streak += 1
+                check_date -= timedelta(days=1)
+        
+        # 计算最长连续天数
+        sorted_dates = sorted(watch_dates)
+        longest_streak = 0
+        temp_streak = 1
+        
+        for i in range(1, len(sorted_dates)):
+            if (sorted_dates[i] - sorted_dates[i-1]).days == 1:
+                temp_streak += 1
+            else:
+                longest_streak = max(longest_streak, temp_streak)
+                temp_streak = 1
+        longest_streak = max(longest_streak, temp_streak)
+        
+        return {
+            "current_streak": current_streak,
+            "longest_streak": longest_streak,
+            "total_watch_days": len(watch_dates),
+        }
+        
+    except Exception as e:
+        print(f"Error fetching streak: {e}")
+        return {
+            "current_streak": 0,
+            "longest_streak": 0,
+            "total_watch_days": 0,
+        }
+
+
+@router.get("/monthly/{user_id}")
+async def get_monthly_stats(
+    user_id: str,
+    year: int = Query(None, description="年份，默认当前年"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取月度统计
+    """
+    if year is None:
+        year = datetime.now().year
+    
+    monthly_data = {i: {"movies": 0, "episodes": 0, "total": 0, "watch_time": 0} for i in range(1, 13)}
+    
+    try:
+        start_date = datetime(year, 1, 1)
+        end_date = datetime(year, 12, 31, 23, 59, 59)
+        
+        result = await db.execute(
+            select(WatchHistory)
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.watched_at >= start_date,
+                    WatchHistory.watched_at <= end_date,
+                )
+            )
+        )
+        
+        for item in result.scalars().all():
+            if item.watched_at:
+                month = item.watched_at.month
+                if item.media_type == "Movie":
+                    monthly_data[month]["movies"] += 1
+                elif item.media_type == "Episode":
+                    monthly_data[month]["episodes"] += 1
+                monthly_data[month]["total"] += 1
+                
+                if item.runtime_minutes:
+                    monthly_data[month]["watch_time"] += item.runtime_minutes
+                    
+    except Exception as e:
+        print(f"Error fetching monthly stats: {e}")
+    
+    # 转换为列表
+    months = [
+        {"month": i, "name": f"{i}月", **monthly_data[i]}
+        for i in range(1, 13)
+    ]
+    
+    return {"year": year, "months": months}
+
+
+@router.get("/weekday/{user_id}")
+async def get_weekday_stats(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    获取星期分布统计
+    """
+    weekday_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+    weekday_data = {i: {"name": weekday_names[i], "count": 0} for i in range(7)}
+    
+    try:
+        result = await db.execute(
+            select(WatchHistory)
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.watched_at.isnot(None),
+                )
+            )
+        )
+        
+        for item in result.scalars().all():
+            if item.watched_at:
+                weekday = item.watched_at.weekday()
+                weekday_data[weekday]["count"] += 1
+                
+    except Exception as e:
+        print(f"Error fetching weekday stats: {e}")
+    
+    return {"weekdays": list(weekday_data.values())}
