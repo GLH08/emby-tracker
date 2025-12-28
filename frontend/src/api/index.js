@@ -79,6 +79,25 @@ export const tmdbApi = {
   getTopRatedTv: (page = 1) => api.get('/tmdb/tv/top-rated', { params: { page } }),
   getPerson: (personId) => api.get(`/tmdb/person/${personId}`),
   getGenres: (mediaType = 'movie') => api.get(`/tmdb/genres/${mediaType}`),
+  // 新增 API
+  discoverMovies: (params) => api.get('/tmdb/discover/movie', { params }),
+  discoverTv: (params) => api.get('/tmdb/discover/tv', { params }),
+  getNetworks: () => api.get('/tmdb/networks'),
+  getWatchProviders: (mediaType, mediaId) => api.get(`/tmdb/watch-providers/${mediaType}/${mediaId}`),
+  getMovieRecommendations: (movieId, page = 1) => api.get(`/tmdb/movie/${movieId}/recommendations`, { params: { page } }),
+  getTvRecommendations: (tvId, page = 1) => api.get(`/tmdb/tv/${tvId}/recommendations`, { params: { page } }),
+  getMovieSimilar: (movieId, page = 1) => api.get(`/tmdb/movie/${movieId}/similar`, { params: { page } }),
+  getTvSimilar: (tvId, page = 1) => api.get(`/tmdb/tv/${tvId}/similar`, { params: { page } }),
+}
+
+// Recommend API (推荐系统)
+export const recommendApi = {
+  getForYou: (userId, limit = 20) => api.get('/recommend/for-you', { params: { user_id: userId, limit } }),
+  getBecauseYouWatched: (embyId, userId, limit = 10) => api.get(`/recommend/because-you-watched/${embyId}`, { params: { user_id: userId, limit } }),
+  getSimilar: (mediaType, tmdbId, page = 1) => api.get(`/recommend/similar/${mediaType}/${tmdbId}`, { params: { page } }),
+  getTrendingByGenre: (genreId, mediaType = 'movie', page = 1) => api.get('/recommend/trending-by-genre', { params: { genre_id: genreId, media_type: mediaType, page } }),
+  getByNetwork: (networkId, page = 1) => api.get(`/recommend/by-network/${networkId}`, { params: { page } }),
+  getGenrePreferences: (userId) => api.get('/recommend/genre-preferences', { params: { user_id: userId } }),
 }
 
 // Watchlist API

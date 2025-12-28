@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import init_db
-from app.routers import emby, tmdb, watchlist, stats, auth, history, hero, calendar, progress
+from app.routers import emby, tmdb, watchlist, stats, auth, history, hero, calendar, progress, recommend
 from app.services.sync import sync_all_users, start_sync_scheduler, stop_sync_scheduler
 
 settings = get_settings()
@@ -57,6 +57,7 @@ app.include_router(history.router, prefix="/api")
 app.include_router(hero.router, prefix="/api")
 app.include_router(calendar.router, prefix="/api")
 app.include_router(progress.router, prefix="/api")
+app.include_router(recommend.router, prefix="/api")
 
 
 @app.get("/api/health")

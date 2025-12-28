@@ -177,3 +177,104 @@ async def get_genres(media_type: str = "movie"):
 async def get_image_url(path: str, size: str = "w500"):
     """获取图片完整 URL"""
     return {"url": tmdb_service.get_image_url(path, size)}
+
+
+# ============ 发现相关 ============
+
+@router.get("/discover/movie")
+async def discover_movies(
+    page: int = Query(1, ge=1),
+    genre: Optional[int] = None,
+    year: Optional[int] = None,
+    sort_by: str = "popularity.desc",
+):
+    """发现电影"""
+    try:
+        params = {"page": page, "sort_by": sort_by}
+        if genre:
+            params["with_genres"] = genre
+        if year:
+            params["primary_release_year"] = year
+        return await tmdb_service.discover_movie(params)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/discover/tv")
+async def discover_tv(
+    page: int = Query(1, ge=1),
+    genre: Optional[int] = None,
+    year: Optional[int] = None,
+    network: Optional[int] = None,
+    sort_by: str = "popularity.desc",
+):
+    """发现剧集"""
+    try:
+        params = {"page": page, "sort_by": sort_by}
+        if genre:
+            params["with_genres"] = genre
+        if year:
+            params["first_air_date_year"] = year
+        if network:
+            params["with_networks"] = network
+        return await tmdb_service.discover_tv(params)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/networks")
+async def get_networks():
+    """获取电视网络列表"""
+    try:
+        return await tmdb_service.get_networks()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============ 流媒体可用性 ============
+
+@router.get("/watch-providers/{media_type}/{media_id}")
+async def get_watch_providers(media_type: str, media_id: int):
+    """获取流媒体可用性"""
+    try:
+        return await tmdb_service.get_watch_providers(media_type, media_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============ 推荐相关 ============
+
+@router.get("/movie/{movie_id}/recommendations")
+async def get_movie_recommendations(movie_id: int, page: int = Query(1, ge=1)):
+    """获取电影推荐"""
+    try:
+        return await tmdb_service.get_movie_recommendations(movie_id, page)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/tv/{tv_id}/recommendations")
+async def get_tv_recommendations(tv_id: int, page: int = Query(1, ge=1)):
+    """获取剧集推荐"""
+    try:
+        return await tmdb_service.get_tv_recommendations(tv_id, page)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/movie/{movie_id}/similar")
+async def get_movie_similar(movie_id: int, page: int = Query(1, ge=1)):
+    """获取相似电影"""
+    try:
+        return await tmdb_service.get_movie_similar(movie_id, page)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/tv/{tv_id}/similar")
+async def get_tv_similar(tv_id: int, page: int = Query(1, ge=1)):
+    """获取相似剧集"""
+    try:
+        return await tmdb_service.get_tv_similar(tv_id, page)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

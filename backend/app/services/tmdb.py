@@ -133,6 +133,100 @@ class TMDBService:
             params["end_date"] = end_date
         return await self._request("/tv/changes", params=params)
     
+    async def get_watch_providers(self, media_type: str, media_id: int) -> dict:
+        """获取流媒体可用性"""
+        return await self._request(f"/{media_type}/{media_id}/watch/providers")
+    
+    async def get_movie_recommendations(self, movie_id: int, page: int = 1) -> dict:
+        """获取电影推荐"""
+        return await self._request(f"/movie/{movie_id}/recommendations", params={"page": page})
+    
+    async def get_tv_recommendations(self, tv_id: int, page: int = 1) -> dict:
+        """获取剧集推荐"""
+        return await self._request(f"/tv/{tv_id}/recommendations", params={"page": page})
+    
+    async def get_movie_similar(self, movie_id: int, page: int = 1) -> dict:
+        """获取相似电影"""
+        return await self._request(f"/movie/{movie_id}/similar", params={"page": page})
+    
+    async def get_tv_similar(self, tv_id: int, page: int = 1) -> dict:
+        """获取相似剧集"""
+        return await self._request(f"/tv/{tv_id}/similar", params={"page": page})
+    
+    async def get_movie_keywords(self, movie_id: int) -> dict:
+        """获取电影关键词"""
+        return await self._request(f"/movie/{movie_id}/keywords")
+    
+    async def get_tv_keywords(self, tv_id: int) -> dict:
+        """获取剧集关键词"""
+        return await self._request(f"/tv/{tv_id}/keywords")
+    
+    async def discover_by_genre(self, media_type: str, genre_id: int, page: int = 1, sort_by: str = "popularity.desc") -> dict:
+        """按类型发现内容"""
+        params = {
+            "with_genres": genre_id,
+            "sort_by": sort_by,
+            "page": page,
+        }
+        if media_type == "movie":
+            return await self._request("/discover/movie", params=params)
+        else:
+            return await self._request("/discover/tv", params=params)
+    
+    async def discover_by_year(self, media_type: str, year: int, page: int = 1, sort_by: str = "popularity.desc") -> dict:
+        """按年份发现内容"""
+        params = {
+            "sort_by": sort_by,
+            "page": page,
+        }
+        if media_type == "movie":
+            params["primary_release_year"] = year
+            return await self._request("/discover/movie", params=params)
+        else:
+            params["first_air_date_year"] = year
+            return await self._request("/discover/tv", params=params)
+    
+    async def discover_by_network(self, network_id: int, page: int = 1) -> dict:
+        """按电视网络发现剧集"""
+        params = {
+            "with_networks": network_id,
+            "sort_by": "popularity.desc",
+            "page": page,
+        }
+        return await self._request("/discover/tv", params=params)
+    
+    async def get_networks(self) -> dict:
+        """获取电视网络列表（常用的）"""
+        # TMDB 没有直接的网络列表 API，返回常用网络
+        return {
+            "networks": [
+                {"id": 213, "name": "Netflix"},
+                {"id": 1024, "name": "Amazon Prime Video"},
+                {"id": 2739, "name": "Disney+"},
+                {"id": 453, "name": "Hulu"},
+                {"id": 2552, "name": "Apple TV+"},
+                {"id": 49, "name": "HBO"},
+                {"id": 67, "name": "Showtime"},
+                {"id": 318, "name": "Starz"},
+                {"id": 359, "name": "Cinemax"},
+                {"id": 174, "name": "AMC"},
+                {"id": 19, "name": "FOX"},
+                {"id": 16, "name": "CBS"},
+                {"id": 6, "name": "NBC"},
+                {"id": 2, "name": "ABC"},
+                {"id": 71, "name": "The CW"},
+                {"id": 88, "name": "FX"},
+                {"id": 1436, "name": "BBC iPlayer"},
+                {"id": 4, "name": "BBC One"},
+                {"id": 493, "name": "BBC America"},
+                {"id": 1709, "name": "腾讯视频"},
+                {"id": 1790, "name": "爱奇艺"},
+                {"id": 1867, "name": "优酷"},
+                {"id": 2080, "name": "芒果TV"},
+                {"id": 614, "name": "bilibili"},
+            ]
+        }
+    
     def get_image_url(self, path: str, size: str = "w500") -> str:
         """获取图片完整 URL"""
         if not path:
