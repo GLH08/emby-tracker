@@ -91,6 +91,11 @@ const routes = [
     name: 'Calendar',
     component: () => import('../views/Calendar.vue'),
   },
+  {
+    path: '/progress',
+    name: 'Progress',
+    component: () => import('../views/Progress.vue'),
+  },
 ]
 
 const router = createRouter({

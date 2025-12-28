@@ -137,4 +137,11 @@ export const calendarApi = {
   exportIcal: (userId) => `/api/calendar/ical?user_id=${userId}`,
 }
 
+// Progress API (剧集进度)
+export const progressApi = {
+  getShowsProgress: (userId) => api.get('/progress/shows', { params: { user_id: userId } }),
+  getShowProgress: (seriesId, userId) => api.get(`/progress/show/${seriesId}`, { params: { user_id: userId } }),
+  getProgressStats: (userId) => api.get('/progress/stats', { params: { user_id: userId } }),
+}
+
 export default api
