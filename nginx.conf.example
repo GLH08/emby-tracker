@@ -1,3 +1,16 @@
+# Emby Tracker Nginx 反向代理配置示例
+# 
+# 使用方法：
+# 1. 复制此文件到 /etc/nginx/sites-available/emby-tracker
+# 2. 修改 server_name 为你的域名
+# 3. 修改 SSL 证书路径
+# 4. 创建软链接：ln -s /etc/nginx/sites-available/emby-tracker /etc/nginx/sites-enabled/
+# 5. 测试配置：nginx -t
+# 6. 重载配置：nginx -s reload
+#
+# 注意：EMBY_URL 环境变量需要设置为浏览器可访问的地址，
+# 因为前端需要直接加载 Emby 的图片资源。
+
 server {
     listen 80;
     server_name your-domain.com;
@@ -26,19 +39,26 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    # 客户端请求大小限制
-    client_max_body_size 100M;
+    # 客户端请求大小限制（用于数据导入功能）
+    client_max_body_size 50M;
 
-    # 代理到 Emby Tracker 前端
+    # 前端静态资源和页面
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
+        
+        # 基础代理头
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket 支持（如需实时功能）
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        
+        # 禁用缓冲（用于流式响应）
+        proxy_buffering off;
         
         # 超时设置
         proxy_connect_timeout 60s;
@@ -46,10 +66,33 @@ server {
         proxy_read_timeout 60s;
     }
 
+    # API 路由（单独配置更长超时，用于同步、导入等耗时操作）
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # API 需要更长超时（同步、导入等操作可能耗时较长）
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        
+        # 禁用缓冲
+        proxy_buffering off;
+    }
+
     # 健康检查端点
-    location /health {
+    location = /health {
         proxy_pass http://127.0.0.1:3000/api/health;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
+        
+        # 健康检查应该快速响应
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 5s;
     }
 }

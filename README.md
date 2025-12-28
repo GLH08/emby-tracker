@@ -83,7 +83,7 @@ docker compose up -d --build
 
 ## Nginx 反向代理
 
-如需通过域名访问，可参考 `nginx.conf.example` 配置反向代理：
+如需通过域名访问，可参考以下配置：
 
 ```nginx
 server {
@@ -96,19 +96,58 @@ server {
     listen 443 ssl http2;
     server_name your-domain.com;
 
+    # SSL 证书
     ssl_certificate /path/to/fullchain.pem;
     ssl_certificate_key /path/to/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+
+    # 客户端请求体大小限制（用于数据导入）
+    client_max_body_size 50M;
+
+    # 超时设置
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
+        
+        # 基础代理头
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket 支持（如需实时功能）
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # 禁用缓冲（用于流式响应）
+        proxy_buffering off;
+    }
+
+    # API 路由（可选：单独配置更长超时）
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # API 可能需要更长超时（如同步操作）
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
     }
 }
 ```
+
+> **注意**：`EMBY_URL` 环境变量需要设置为浏览器可访问的地址，因为前端需要直接加载 Emby 的图片资源。
 
 ## 技术栈
 
