@@ -157,3 +157,33 @@ class UserRating(Base):
     
     rated_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Checkin(Base):
+    """Check-in 签到记录"""
+    __tablename__ = "checkins"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True)  # Emby 用户 ID
+    emby_id = Column(String(100), nullable=True)
+    tmdb_id = Column(Integer, nullable=True)
+    media_type = Column(String(20))  # movie / episode
+    title = Column(String(500))
+    
+    # 剧集信息
+    series_name = Column(String(500), nullable=True)
+    season_number = Column(Integer, nullable=True)
+    episode_number = Column(Integer, nullable=True)
+    
+    # 媒体信息
+    poster_path = Column(String(500), nullable=True)
+    year = Column(Integer, nullable=True)
+    runtime_minutes = Column(Integer, default=0)
+    
+    # Check-in 状态
+    is_active = Column(Boolean, default=True)  # 是否正在观看
+    started_at = Column(DateTime, server_default=func.now())  # 开始时间
+    ended_at = Column(DateTime, nullable=True)  # 结束时间
+    
+    # 可选评论
+    comment = Column(Text, nullable=True)

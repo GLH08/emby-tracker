@@ -62,6 +62,19 @@
 
           <!-- 操作按钮 -->
           <div class="flex flex-wrap items-center gap-3 mb-8">
+            <!-- Check-in 按钮 -->
+            <button 
+              @click="handleCheckin"
+              class="btn btn-primary flex items-center"
+              :disabled="checkingIn"
+            >
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              {{ checkingIn ? '签到中...' : '正在观看' }}
+            </button>
+
             <button 
               @click="togglePlayed"
               class="btn"
@@ -244,7 +257,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAppStore } from '../stores/app'
-import { embyApi, tmdbApi, watchlistApi } from '../api'
+import { embyApi, tmdbApi, watchlistApi, checkinApi } from '../api'
 
 const props = defineProps({
   id: String,
@@ -258,6 +271,7 @@ const tmdbData = ref(null)
 const seasons = ref([])
 const selectedSeason = ref(null)
 const episodes = ref([])
+const checkingIn = ref(false)
 
 const posterUrl = computed(() => {
   if (!item.value) return ''
@@ -389,6 +403,33 @@ const addToWatchlist = async () => {
     } else {
       console.error('Failed to add to watchlist:', e)
     }
+  }
+}
+
+const handleCheckin = async () => {
+  if (!appStore.currentEmbyUser || !item.value || checkingIn.value) return
+  
+  checkingIn.value = true
+  try {
+    const runtimeMinutes = item.value.runtime_ticks 
+      ? Math.round(item.value.runtime_ticks / 600000000) 
+      : 0
+    
+    await checkinApi.create(appStore.currentEmbyUser.Id, {
+      emby_id: item.value.id,
+      tmdb_id: item.value.provider_ids?.Tmdb ? parseInt(item.value.provider_ids.Tmdb) : null,
+      media_type: props.type === 'movie' ? 'movie' : 'episode',
+      title: item.value.name,
+      poster_path: tmdbData.value?.poster_path,
+      year: item.value.year,
+      runtime_minutes: runtimeMinutes,
+    })
+    alert('Check-in 成功！正在观看中...')
+  } catch (e) {
+    console.error('Failed to check-in:', e)
+    alert('Check-in 失败')
+  } finally {
+    checkingIn.value = false
   }
 }
 

@@ -145,6 +145,15 @@ export const exportApi = {
   },
 }
 
+// Check-in API (签到)
+export const checkinApi = {
+  create: (userId, data) => api.post('/checkin/', data, { params: { user_id: userId } }),
+  getCurrent: (userId) => api.get('/checkin/current', { params: { user_id: userId } }),
+  end: (userId, checkinId) => api.post('/checkin/end', null, { params: { user_id: userId, checkin_id: checkinId } }),
+  getHistory: (userId, params) => api.get('/checkin/history', { params: { user_id: userId, ...params } }),
+  delete: (checkinId, userId) => api.delete(`/checkin/${checkinId}`, { params: { user_id: userId } }),
+}
+
 // Watchlist API
 export const watchlistApi = {
   getWatchlist: (mediaType) => api.get('/watchlist/', { params: { media_type: mediaType } }),
