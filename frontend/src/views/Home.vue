@@ -170,6 +170,12 @@ const endCurrentCheckin = async () => {
   }
 }
 
+const getItemTypes = (collectionType) => {
+  if (collectionType === 'movies') return 'Movie'
+  if (collectionType === 'tvshows') return 'Series'
+  return 'Movie,Series,Video'
+}
+
 const fetchLibraryItemCounts = async () => {
   if (!appStore.currentEmbyUser) return
   
@@ -177,6 +183,7 @@ const fetchLibraryItemCounts = async () => {
     try {
       const result = await embyApi.getItems(appStore.currentEmbyUser.Id, {
         parent_id: library.id,
+        include_item_types: getItemTypes(library.collection_type),
         limit: 1,
       })
       libraryItemCounts[library.id] = result.total_count
