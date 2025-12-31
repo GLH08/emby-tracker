@@ -51,32 +51,10 @@
         </div>
       </section>
 
-      <!-- 媒体库瀑布墙 -->
+      <!-- 媒体库概览 -->
       <section v-if="appStore.allowedLibraries.length > 0">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white">媒体库</h2>
-          <button 
-            @click="showListView = !showListView"
-            class="btn btn-ghost text-sm"
-            title="切换视图"
-          >
-            <svg v-if="showListView" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-            </svg>
-            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
-            </svg>
-          </button>
-        </div>
-        
-        <!-- 瀑布墙视图 -->
-        <CategoryWall 
-          v-if="!showListView"
-          :libraries="appStore.allowedLibraries" 
-        />
-        
-        <!-- 列表视图（保留原来的样式作为备选） -->
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">媒体库</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <router-link
             v-for="library in appStore.allowedLibraries"
             :key="library.id"
@@ -129,7 +107,6 @@ import { useAppStore } from '../stores/app'
 import { embyApi, heroApi, checkinApi } from '../api'
 import HeroSlider from '../components/HeroSlider.vue'
 import MediaGrid from '../components/MediaGrid.vue'
-import CategoryWall from '../components/CategoryWall.vue'
 
 const appStore = useAppStore()
 const loading = ref(true)
@@ -137,7 +114,6 @@ const recentlyAdded = ref([])
 const heroSlides = ref([])
 const libraryItemCounts = reactive({})
 const currentCheckin = ref(null)
-const showListView = ref(localStorage.getItem('libraryViewMode') === 'list')
 
 const getLibraryIconClass = (library) => {
   if (library.collection_type === 'movies') {
@@ -215,10 +191,8 @@ const fetchData = async () => {
   
   loading.value = true
   try {
-    // 获取当前 Check-in
     await fetchCurrentCheckin()
     
-    // 先获取自定义轮播
     try {
       const customSlides = await heroApi.getSlides(true)
       heroSlides.value = customSlides
@@ -229,7 +203,6 @@ const fetchData = async () => {
     const recent = await embyApi.getRecentlyAdded(appStore.currentEmbyUser.Id, 20)
     recentlyAdded.value = recent
     
-    // 获取每个媒体库的实际项目数量
     await fetchLibraryItemCounts()
   } catch (e) {
     console.error('Failed to fetch home data:', e)
@@ -240,11 +213,6 @@ const fetchData = async () => {
 
 watch(() => appStore.currentEmbyUser, fetchData)
 watch(() => appStore.allowedLibraries, fetchLibraryItemCounts)
-
-// 保存视图模式偏好
-watch(showListView, (newVal) => {
-  localStorage.setItem('libraryViewMode', newVal ? 'list' : 'wall')
-})
 
 onMounted(fetchData)
 </script>
