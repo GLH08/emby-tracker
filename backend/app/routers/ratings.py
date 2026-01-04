@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, delete
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 from app.database import get_db
 from app.models import UserRating
@@ -166,6 +166,39 @@ async def check_rating(
         }
     
     return {"rated": False, "rating": None}
+
+
+@router.post("/check-batch")
+async def check_ratings_batch(
+    emby_ids: List[str],
+    user_id: str = Query(..., description="Emby 用户 ID"),
+    media_type: str = Query("episode", description="媒体类型"),
+    db: AsyncSession = Depends(get_db),
+):
+    """批量检查多个项目的评分状态"""
+    if not emby_ids:
+        return {"ratings": {}}
+    
+    query = select(UserRating).where(
+        and_(
+            UserRating.user_id == user_id,
+            UserRating.media_type == media_type,
+            UserRating.emby_id.in_(emby_ids)
+        )
+    )
+    
+    result = await db.execute(query)
+    ratings = result.scalars().all()
+    
+    # 返回 {emby_id: {rating, review}} 的映射
+    ratings_map = {}
+    for r in ratings:
+        ratings_map[r.emby_id] = {
+            "rating": r.rating,
+            "review": r.review
+        }
+    
+    return {"ratings": ratings_map}
 
 
 @router.put("/{rating_id}")

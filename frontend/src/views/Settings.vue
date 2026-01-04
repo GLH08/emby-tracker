@@ -277,104 +277,6 @@
         </p>
       </section>
 
-      <!-- 外部评分同步 -->
-      <section class="card p-6">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">外部评分</h2>
-            <p class="text-sm text-gray-500 dark:text-gray-400">同步 IMDB、烂番茄、Metacritic 评分到本地缓存</p>
-          </div>
-        </div>
-        
-        <!-- 缓存统计 -->
-        <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <p class="font-medium text-blue-700 dark:text-blue-300">已缓存 {{ cachedRatingsCount }} 部影片评分</p>
-              <p class="text-xs text-blue-600 dark:text-blue-400">缓存后无需重复请求 API，有效期 7 天</p>
-            </div>
-            <div v-if="omdbStatus" class="text-right">
-              <p class="text-sm text-blue-700 dark:text-blue-300">{{ omdbStatus.total_keys }} 个 API Key</p>
-              <p class="text-xs text-blue-600 dark:text-blue-400">每 Key 每天 1000 次</p>
-            </div>
-          </div>
-        </div>
-        
-        <!-- 同步进度 -->
-        <div v-if="syncStatus.is_running || syncStatus.processed > 0" class="mb-4 p-4 bg-gray-50 dark:bg-dark-100 rounded-xl">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ syncStatus.is_running ? '同步中...' : '同步完成' }}
-            </span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-              {{ syncStatus.processed }} / {{ syncStatus.total }}
-            </span>
-          </div>
-          <div class="w-full bg-gray-200 dark:bg-dark-200 rounded-full h-2 mb-2">
-            <div 
-              class="bg-primary-500 h-2 rounded-full transition-all"
-              :style="{ width: `${syncStatus.total > 0 ? (syncStatus.processed / syncStatus.total) * 100 : 0}%` }"
-            ></div>
-          </div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ syncStatus.current_item }}</p>
-          <div class="flex items-center space-x-4 mt-2 text-xs">
-            <span class="text-green-600 dark:text-green-400">成功: {{ syncStatus.success }}</span>
-            <span class="text-yellow-600 dark:text-yellow-400">跳过: {{ syncStatus.skipped }}</span>
-            <span class="text-red-600 dark:text-red-400">失败: {{ syncStatus.failed }}</span>
-          </div>
-        </div>
-        
-        <!-- 同步按钮 -->
-        <div class="flex flex-col sm:flex-row gap-3">
-          <button 
-            @click="startRatingsSync(false)"
-            class="btn btn-primary flex-1"
-            :disabled="syncStatus.is_running || !omdbStatus?.total_keys"
-          >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            {{ syncStatus.is_running ? '同步中...' : '同步外部评分' }}
-          </button>
-          <button 
-            @click="startRatingsSync(true)"
-            class="btn btn-secondary"
-            :disabled="syncStatus.is_running || !omdbStatus?.total_keys"
-          >
-            强制刷新全部
-          </button>
-        </div>
-        
-        <!-- 显示开关 -->
-        <div class="mt-4 pt-4 border-t border-gray-100 dark:border-dark-100">
-          <label class="flex items-center justify-between cursor-pointer">
-            <div>
-              <p class="font-medium text-gray-900 dark:text-white">在影片列表显示 IMDB 评分</p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">在首页、发现、历史等页面的影片卡片上显示评分</p>
-            </div>
-            <div 
-              @click="toggleExternalRatingsDisplay"
-              class="relative w-12 h-6 rounded-full transition-colors cursor-pointer"
-              :class="appStore.showExternalRatings ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-100'"
-            >
-              <div 
-                class="absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow"
-                :class="appStore.showExternalRatings ? 'translate-x-7' : 'translate-x-1'"
-              ></div>
-            </div>
-          </label>
-        </div>
-        
-        <p v-if="!omdbStatus?.total_keys" class="mt-3 text-sm text-yellow-600 dark:text-yellow-400">
-          ⚠️ 未配置 OMDb API Key，请在 .env 文件中设置 OMDB_API_KEYS
-        </p>
-      </section>
-
       <!-- 数据导入/导出 -->
       <section class="card p-6">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">数据管理</h2>
@@ -753,7 +655,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import { authApi, heroApi, embyApi, exportApi, externalRatingsApi, syncApi } from '../api'
+import { authApi, heroApi, embyApi, exportApi, syncApi } from '../api'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -804,21 +706,6 @@ const librarySyncStatus = ref({
 })
 const refreshingLibraries = ref(false)
 const fullSyncing = ref(false)
-
-// 外部评分同步
-const omdbStatus = ref(null)
-const cachedRatingsCount = ref(0)
-const syncStatus = ref({
-  is_running: false,
-  total: 0,
-  processed: 0,
-  success: 0,
-  failed: 0,
-  skipped: 0,
-  current_item: '',
-  error: null
-})
-let syncPollInterval = null
 
 // 媒体库同步方法
 const fetchLibrarySyncStatus = async () => {
@@ -1068,9 +955,6 @@ const moveHeroSlide = async (index, direction) => {
 onMounted(() => {
   fetchGuests()
   fetchHeroSlides()
-  fetchOmdbStatus()
-  fetchCachedCount()
-  fetchSyncStatus()
   fetchLibrarySyncStatus()
 })
 
@@ -1134,74 +1018,4 @@ const handleBackupImport = async (event) => {
   }
 }
 
-// 外部评分相关方法
-const fetchOmdbStatus = async () => {
-  try {
-    omdbStatus.value = await externalRatingsApi.getStatus()
-  } catch (e) {
-    console.error('Failed to fetch OMDb status:', e)
-  }
-}
-
-const fetchCachedCount = async () => {
-  try {
-    const result = await externalRatingsApi.getCachedCount()
-    cachedRatingsCount.value = result.count
-  } catch (e) {
-    console.error('Failed to fetch cached count:', e)
-  }
-}
-
-const fetchSyncStatus = async () => {
-  try {
-    syncStatus.value = await externalRatingsApi.getSyncStatus()
-    
-    // 如果正在同步，启动轮询
-    if (syncStatus.value.is_running && !syncPollInterval) {
-      startSyncPolling()
-    }
-  } catch (e) {
-    console.error('Failed to fetch sync status:', e)
-  }
-}
-
-const startSyncPolling = () => {
-  if (syncPollInterval) return
-  
-  syncPollInterval = setInterval(async () => {
-    await fetchSyncStatus()
-    
-    // 同步完成后停止轮询
-    if (!syncStatus.value.is_running) {
-      stopSyncPolling()
-      fetchCachedCount()
-      fetchOmdbStatus()
-    }
-  }, 1000)
-}
-
-const stopSyncPolling = () => {
-  if (syncPollInterval) {
-    clearInterval(syncPollInterval)
-    syncPollInterval = null
-  }
-}
-
-const startRatingsSync = async (force = false) => {
-  if (!appStore.currentEmbyUser) {
-    alert('请先选择 Emby 用户')
-    return
-  }
-  
-  try {
-    await externalRatingsApi.startSync(appStore.currentEmbyUser.Id, force)
-    startSyncPolling()
-  } catch (e) {
-    alert(e.response?.data?.detail || '启动同步失败')
-  }
-}
-
-const toggleExternalRatingsDisplay = () => {
-  appStore.toggleShowExternalRatings()
-}
 </script>

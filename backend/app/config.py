@@ -15,9 +15,6 @@ class Settings(BaseSettings):
     tmdb_base_url: str = "https://api.themoviedb.org/3"
     tmdb_image_base_url: str = "https://image.tmdb.org/t/p"
     
-    # OMDb 配置（用于获取 IMDB、烂番茄、Metacritic 评分）
-    omdb_api_keys: str = ""  # 多个 Key 用逗号分隔
-    
     # 应用配置
     secret_key: str = "change-this-secret-key"
     database_url: str = "sqlite+aiosqlite:///./data/emby_tracker.db"

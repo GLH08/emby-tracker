@@ -19,14 +19,6 @@
 - 📤 **数据导入/导出** - 支持 Trakt 导入、完整备份/恢复
 - 📆 **年度回顾** - 类似 Spotify Wrapped 的年度观影总结
 
-### 外部评分集成
-
-- 🎯 **IMDB/烂番茄/Metacritic 评分** - 通过 OMDb API 获取外部评分
-- 💾 **本地缓存** - 评分数据缓存到本地，7天有效期，无需重复请求
-- 🔄 **批量同步** - 一键同步整个媒体库的外部评分
-- 🔑 **多 API Key 支持** - 支持多个 OMDb API Key 轮询，自动故障转移
-- 🏷️ **全局显示** - 可选在所有影片卡片上显示 IMDB 评分徽章
-
 ### 系统功能
 
 - 🎨 **自定义轮播** - 自定义首页轮播海报
@@ -80,7 +72,6 @@ docker compose up -d --build
 | `EMBY_URL` | ✅ | - | Emby 服务器地址，如 `http://192.168.1.100:8096` |
 | `EMBY_API_KEY` | ✅ | - | Emby API 密钥 |
 | `TMDB_API_KEY` | ✅ | - | TMDB API 密钥（用于发现、推荐、日历等功能） |
-| `OMDB_API_KEYS` | ❌ | - | OMDb API 密钥，多个用逗号分隔（用于外部评分） |
 | `ALLOWED_EMBY_USERS` | ❌ | 空（所有用户） | 允许访问的 Emby 用户，逗号分隔 |
 | `SECRET_KEY` | ❌ | `change-this-secret-key` | JWT 密钥，生产环境请修改 |
 | `ADMIN_USERNAME` | ❌ | `admin` | 管理员用户名 |
@@ -105,36 +96,7 @@ docker compose up -d --build
 3. 申请 API 密钥（选择 Developer）
 4. 复制 **API Key (v3 auth)**
 
-### OMDb API Key（可选，用于外部评分）
-
-1. 访问 [OMDb API](https://www.omdbapi.com/apikey.aspx)
-2. 选择免费计划（每天 1000 次请求）
-3. 填写邮箱，验证后获取 API Key
-4. 建议申请多个 Key 以增加配额，用逗号分隔配置
-
 ## 功能详解
-
-### 外部评分（IMDB/烂番茄/Metacritic）
-
-本项目集成了 OMDb API，可获取 IMDB、烂番茄、Metacritic 等外部评分。
-
-**实现方式：**
-- 后端服务 `services/omdb.py` 封装 OMDb API，支持多 Key 轮询
-- 评分数据缓存到 SQLite 数据库，7天有效期
-- 支持通过 IMDB ID 或标题+年份查询
-
-**使用方式：**
-1. 在 `.env` 中配置 `OMDB_API_KEYS`
-2. 进入 **设置** 页面，点击 **同步外部评分**
-3. 系统会扫描 Emby 媒体库，批量获取评分并缓存
-4. 在影片详情页可查看 IMDB/烂番茄/Metacritic 评分
-5. 可开启 **在影片列表显示 IMDB 评分** 开关，在所有卡片上显示评分
-
-**注意事项：**
-- 免费 API Key 每天限制 1000 次请求
-- 建议申请 2-3 个 Key 以增加配额
-- 已缓存的评分不会重复请求，除非强制刷新
-- 评分可点击跳转到对应平台官网
 
 ### 日历视图
 
@@ -237,7 +199,7 @@ docker compose up -d --build
 
 - **框架**: Python FastAPI
 - **数据库**: SQLite + SQLAlchemy（异步）
-- **外部 API**: Emby API、TMDB API、OMDb API
+- **外部 API**: Emby API、TMDB API
 
 ### 前端
 
@@ -259,7 +221,6 @@ docker compose up -d --build
 | `CustomListItem` | 列表项 |
 | `UserRating` | 用户评分 |
 | `Checkin` | Check-in 记录 |
-| `ExternalRating` | 外部评分缓存 |
 | `LibraryCache` | 媒体库缓存 |
 | `LibrarySyncStatus` | 同步状态记录 |
 
@@ -281,7 +242,6 @@ docker compose up -d --build
 | `/api/checkin` | Check-in |
 | `/api/export` | 导入/导出 |
 | `/api/hero` | 轮播管理 |
-| `/api/external-ratings` | 外部评分 |
 | `/api/sync` | 同步管理 |
 
 ## Nginx 反向代理
@@ -298,18 +258,13 @@ docker compose up -d --build
 ## 注意事项
 
 1. **EMBY_URL 配置**：必须是浏览器可访问的地址，不能是 Docker 内部地址
-2. **API 配额**：OMDb 免费 Key 每天 1000 次，建议多申请几个
-3. **数据同步**：首次使用建议手动触发一次同步
-4. **外部评分**：需要先同步才能在详情页和卡片上显示
-5. **日历数据**：依赖 TMDB API，需要正确配置 TMDB_API_KEY
+2. **数据同步**：首次使用建议手动触发一次同步
+3. **日历数据**：依赖 TMDB API，需要正确配置 TMDB_API_KEY
 
 ## 常见问题
 
 **Q: 图片无法加载？**
 A: 检查 `EMBY_URL` 是否为浏览器可访问的地址。
-
-**Q: 外部评分不显示？**
-A: 1) 检查是否配置了 `OMDB_API_KEYS`；2) 在设置页面点击同步；3) 确认 API 配额未用尽。
 
 **Q: 同步很慢？**
 A: 首次同步需要获取所有媒体信息，后续同步会快很多。

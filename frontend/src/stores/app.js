@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { embyApi, configApi, authApi, externalRatingsApi, syncApi } from '../api'
+import { embyApi, configApi, authApi, syncApi } from '../api'
 
 export const useAppStore = defineStore('app', () => {
   // 状态
@@ -23,9 +23,6 @@ export const useAppStore = defineStore('app', () => {
   const loading = ref(false)
   const error = ref(null)
   
-  // 外部评分状态
-  const showExternalRatings = ref(localStorage.getItem('showExternalRatings') === 'true')
-  const externalRatingsCache = ref({}) // { imdb_id: rating, tmdb_id: rating }
 
   // 计算属性
   const embyUrl = computed(() => config.value?.emby_url || '')
@@ -190,51 +187,6 @@ export const useAppStore = defineStore('app', () => {
     return `${tmdbImageBaseUrl.value}/${size}${path}`
   }
 
-  // 外部评分方法
-  const toggleShowExternalRatings = () => {
-    showExternalRatings.value = !showExternalRatings.value
-    localStorage.setItem('showExternalRatings', showExternalRatings.value)
-    if (showExternalRatings.value && Object.keys(externalRatingsCache.value).length === 0) {
-      loadExternalRatingsCache()
-    }
-  }
-
-  const setShowExternalRatings = (value) => {
-    showExternalRatings.value = value
-    localStorage.setItem('showExternalRatings', value)
-    if (value && Object.keys(externalRatingsCache.value).length === 0) {
-      loadExternalRatingsCache()
-    }
-  }
-
-  const loadExternalRatingsCache = async () => {
-    try {
-      const result = await externalRatingsApi.getAllCached()
-      if (result.ratings) {
-        for (const r of result.ratings) {
-          if (r.imdb_id) {
-            externalRatingsCache.value[`imdb_${r.imdb_id}`] = r.imdb_rating
-          }
-          if (r.tmdb_id) {
-            externalRatingsCache.value[`tmdb_${r.tmdb_id}`] = r.imdb_rating
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load external ratings cache:', e)
-    }
-  }
-
-  const getExternalRating = (imdbId, tmdbId) => {
-    if (imdbId && externalRatingsCache.value[`imdb_${imdbId}`]) {
-      return externalRatingsCache.value[`imdb_${imdbId}`]
-    }
-    if (tmdbId && externalRatingsCache.value[`tmdb_${tmdbId}`]) {
-      return externalRatingsCache.value[`tmdb_${tmdbId}`]
-    }
-    return null
-  }
-
   const init = async () => {
     updateDarkModeClass()
     await fetchConfig()
@@ -244,10 +196,6 @@ export const useAppStore = defineStore('app', () => {
       await fetchEmbyUsers()
       if (currentEmbyUser.value) {
         await fetchLibraries()
-      }
-      // 如果启用了外部评分显示，加载缓存
-      if (showExternalRatings.value) {
-        loadExternalRatingsCache()
       }
     }
   }
@@ -268,8 +216,6 @@ export const useAppStore = defineStore('app', () => {
     selectedLibraryId,
     loading,
     error,
-    showExternalRatings,
-    externalRatingsCache,
     // 计算属性
     embyUrl,
     tmdbImageBaseUrl,
@@ -291,10 +237,6 @@ export const useAppStore = defineStore('app', () => {
     selectLibrary,
     getEmbyImageUrl,
     getTmdbImageUrl,
-    toggleShowExternalRatings,
-    setShowExternalRatings,
-    loadExternalRatingsCache,
-    getExternalRating,
     init,
   }
 })

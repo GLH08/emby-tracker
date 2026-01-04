@@ -307,9 +307,6 @@
       <div class="card p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">评分分布</h2>
-          <div v-if="ratingMeta.external_used_count > 0" class="text-xs text-gray-500 dark:text-gray-400">
-            含 {{ ratingMeta.external_used_count }} 部 IMDB 评分补充
-          </div>
         </div>
         <div v-if="totalRatings === 0" class="h-32 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
           <span>暂无评分数据</span>
@@ -368,7 +365,7 @@ const overview = ref({
 })
 const genreStats = ref({})
 const ratingStats = ref({})
-const ratingMeta = ref({ no_rating_count: 0, external_used_count: 0 })
+const ratingMeta = ref({ no_rating_count: 0 })
 const recentWatched = ref([])
 const recentType = ref('all')
 
@@ -477,7 +474,6 @@ const fetchAllData = async () => {
     ratingStats.value = ratings.ratings || {}
     ratingMeta.value = {
       no_rating_count: ratings.no_rating_count || 0,
-      external_used_count: ratings.external_used_count || 0,
     }
     streak.value = streakData
     trends.value = trendsData.trends || []

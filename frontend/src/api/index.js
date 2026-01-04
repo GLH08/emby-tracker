@@ -117,6 +117,7 @@ export const ratingsApi = {
   getRatings: (userId, params) => api.get('/ratings/', { params: { user_id: userId, ...params } }),
   createRating: (userId, data) => api.post('/ratings/', data, { params: { user_id: userId } }),
   checkRating: (userId, params) => api.get('/ratings/check', { params: { user_id: userId, ...params } }),
+  checkRatingsBatch: (userId, embyIds, mediaType = 'episode') => api.post('/ratings/check-batch', embyIds, { params: { user_id: userId, media_type: mediaType } }),
   updateRating: (ratingId, userId, data) => api.put(`/ratings/${ratingId}`, data, { params: { user_id: userId } }),
   deleteRating: (ratingId, userId) => api.delete(`/ratings/${ratingId}`, { params: { user_id: userId } }),
   getStats: (userId) => api.get('/ratings/stats', { params: { user_id: userId } }),
@@ -225,20 +226,6 @@ export const progressApi = {
   getShowProgress: (seriesId, userId) => api.get(`/progress/show/${seriesId}`, { params: { user_id: userId } }),
   getProgressStats: (userId) => api.get('/progress/stats', { params: { user_id: userId } }),
   cleanupDuplicates: (userId, dryRun = true) => api.delete('/progress/cleanup-duplicates', { params: { user_id: userId, dry_run: dryRun } }),
-}
-
-// External Ratings API (外部评分 - IMDB/烂番茄/Metacritic)
-export const externalRatingsApi = {
-  getRatings: (params) => api.get('/external-ratings/', { params }),
-  // 强制刷新单个媒体的外部评分
-  refreshRatings: (params) => api.get('/external-ratings/', { params: { ...params, force: true } }),
-  search: (query, mediaType = 'movie', page = 1) => api.get('/external-ratings/search', { params: { query, media_type: mediaType, page } }),
-  getStatus: () => api.get('/external-ratings/status'),
-  resetKeys: () => api.post('/external-ratings/reset-keys'),
-  getSyncStatus: () => api.get('/external-ratings/sync-status'),
-  startSync: (userId, force = false) => api.post('/external-ratings/sync', null, { params: { user_id: userId, force } }),
-  getCachedCount: () => api.get('/external-ratings/cached-count'),
-  getAllCached: (limit = 5000) => api.get('/external-ratings/cached', { params: { limit } }),
 }
 
 // Sync API (同步管理)

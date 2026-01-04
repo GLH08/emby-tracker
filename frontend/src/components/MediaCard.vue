@@ -52,16 +52,6 @@
             </svg>
             <span class="text-white text-sm font-medium">{{ rating.toFixed(1) }}</span>
           </div>
-          
-          <!-- IMDB 评分 (如果启用且有缓存) -->
-          <div 
-            v-if="showImdbRating && imdbRating"
-            class="px-2 py-1 bg-yellow-500/90 rounded-lg flex items-center space-x-1"
-            title="IMDB 评分"
-          >
-            <span class="text-xs font-bold text-black">IMDb</span>
-            <span class="text-black text-sm font-medium">{{ imdbRating.toFixed(1) }}</span>
-          </div>
         </div>
       </div>
 
@@ -146,19 +136,5 @@ const detailLink = computed(() => {
   }
   const type = props.item.type === 'Series' || props.mediaType === 'tv' ? 'show' : 'movie'
   return `/${type}/${props.item.id}`
-})
-
-// IMDB 评分相关
-const showImdbRating = computed(() => appStore.showExternalRatings)
-
-const imdbRating = computed(() => {
-  if (!appStore.showExternalRatings) return null
-  
-  // 从 item 的 provider_ids 获取 IMDB ID 或 TMDB ID
-  const imdbId = props.item.provider_ids?.Imdb
-  const tmdbId = props.item.provider_ids?.Tmdb || props.item.id
-  
-  // 从全局缓存获取评分
-  return appStore.getExternalRating(imdbId, props.source === 'tmdb' ? props.item.id : tmdbId)
 })
 </script>
