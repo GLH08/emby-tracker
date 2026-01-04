@@ -39,6 +39,7 @@ async def get_external_ratings(
     title: Optional[str] = Query(None, description="标题（当没有 IMDB ID 时使用）"),
     year: Optional[int] = Query(None, description="年份"),
     media_type: str = Query("movie", description="媒体类型 (movie/tv)"),
+    force: bool = Query(False, description="是否强制刷新（忽略缓存）"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -46,9 +47,13 @@ async def get_external_ratings(
     
     优先使用 IMDB ID 查询，如果没有则使用标题+年份搜索。
     结果会自动缓存到数据库，7天内重复查询直接返回缓存。
+    设置 force=true 可强制从 API 获取最新数据。
     """
     if not imdb_id and not title:
         raise HTTPException(status_code=400, detail="需要提供 imdb_id 或 title")
+    
+    # 如果强制刷新，设置缓存天数为0
+    cache_days = 0 if force else 7
     
     result = await omdb_service.get_ratings_cached(
         db=db,
@@ -56,7 +61,8 @@ async def get_external_ratings(
         tmdb_id=tmdb_id,
         title=title,
         year=year,
-        media_type=media_type
+        media_type=media_type,
+        cache_days=cache_days
     )
     
     if not result:
@@ -91,6 +97,17 @@ async def get_service_status():
     返回各 API Key 的使用情况和剩余配额
     """
     return omdb_service.get_status()
+
+
+@router.post("/reset-keys")
+async def reset_api_keys():
+    """
+    手动重置所有 API Key 的使用记录
+    
+    用于调试或当你确定 API 限制已经重置时使用。
+    注意：这只重置本地计数，不会影响 OMDb 服务端的实际限制。
+    """
+    return omdb_service.reset_all_keys()
 
 
 @router.get("/sync-status")

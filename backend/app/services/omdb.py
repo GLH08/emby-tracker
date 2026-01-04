@@ -18,6 +18,7 @@ class OMDbService:
     """OMDb API 服务，支持多 Key 轮询"""
     
     BASE_URL = "https://www.omdbapi.com/"
+    DAILY_LIMIT = 1000  # 每个 key 每天的限制
     
     def __init__(self):
         self.api_keys: List[str] = []
@@ -42,71 +43,103 @@ class OMDbService:
         if keys_str:
             self.api_keys = [k.strip() for k in keys_str.split(',') if k.strip()]
             # 初始化使用记录
+            today = datetime.now().date()
             for key in self.api_keys:
                 if key not in self.key_usage:
                     self.key_usage[key] = {
                         'count': 0,
-                        'last_reset': datetime.now().date(),
-                        'errors': 0
+                        'last_reset': today,
+                        'errors': 0,
+                        'exhausted': False,
+                        'exhausted_by_api': False  # 区分是 API 返回限制还是本地计数
                     }
         logger.info(f"OMDb 服务已加载 {len(self.api_keys)} 个 API Key")
+    
+    def _reset_key_if_new_day(self, key: str) -> bool:
+        """如果是新的一天，重置 key 的使用记录，返回是否重置了"""
+        today = datetime.now().date()
+        usage = self.key_usage.get(key)
+        if not usage:
+            return False
+        
+        if usage['last_reset'] != today:
+            logger.info(f"OMDb API Key {key[:8]}**** 新的一天，重置使用记录 (之前使用: {usage['count']})")
+            usage['count'] = 0
+            usage['errors'] = 0
+            usage['last_reset'] = today
+            usage['exhausted'] = False
+            usage['exhausted_by_api'] = False
+            return True
+        return False
     
     def _get_next_key(self) -> Optional[str]:
         """获取下一个可用的 API Key（轮询策略）"""
         self._ensure_initialized()
         
         if not self.api_keys:
+            logger.error("没有配置 OMDb API Key")
             return None
-        
-        today = datetime.now().date()
         
         # 尝试找到一个可用的 key
         tried_keys = 0
         while tried_keys < len(self.api_keys):
             key = self.api_keys[self.current_key_index]
+            
+            # 检查是否需要重置（新的一天）
+            self._reset_key_if_new_day(key)
+            
             usage = self.key_usage[key]
             
-            # 如果是新的一天，重置计数
-            if usage['last_reset'] != today:
-                usage['count'] = 0
-                usage['errors'] = 0
-                usage['last_reset'] = today
-                usage['exhausted'] = False
-            
-            # 检查是否已标记为耗尽（当天收到 API 限制错误）
-            if usage.get('exhausted', False):
+            # 检查是否被 API 标记为耗尽（当天收到 API 限制错误）
+            if usage.get('exhausted_by_api', False):
+                logger.debug(f"Key {key[:8]}**** 被 API 标记为耗尽，跳过")
                 self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
                 tried_keys += 1
                 continue
             
-            # 检查是否超过限制（每天 1000 次）或错误过多
-            if usage['count'] < 1000 and usage['errors'] < 10:
-                return key
+            # 检查本地计数是否超过限制
+            if usage['count'] >= self.DAILY_LIMIT:
+                logger.debug(f"Key {key[:8]}**** 本地计数达到限制 ({usage['count']})，跳过")
+                usage['exhausted'] = True
+                self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+                tried_keys += 1
+                continue
             
-            # 切换到下一个 key
-            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
-            tried_keys += 1
+            # 检查错误是否过多
+            if usage['errors'] >= 10:
+                logger.debug(f"Key {key[:8]}**** 错误过多 ({usage['errors']})，跳过")
+                self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+                tried_keys += 1
+                continue
+            
+            return key
         
         logger.warning("所有 OMDb API Key 已达到限制")
         return None
     
-    def _record_usage(self, key: str, success: bool = True, exhausted: bool = False):
+    def _record_usage(self, key: str, success: bool = True, exhausted_by_api: bool = False):
         """记录 API Key 使用情况"""
-        if key in self.key_usage:
-            self.key_usage[key]['count'] += 1
-            if not success:
-                self.key_usage[key]['errors'] += 1
-            if exhausted:
-                self.key_usage[key]['exhausted'] = True
-                logger.warning(f"OMDb API Key {key[:4]}**** 已达到每日限制")
-            # 轮询到下一个 key
-            self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+        if key not in self.key_usage:
+            return
+        
+        usage = self.key_usage[key]
+        usage['count'] += 1
+        
+        if not success:
+            usage['errors'] += 1
+        
+        if exhausted_by_api:
+            usage['exhausted'] = True
+            usage['exhausted_by_api'] = True
+            logger.warning(f"OMDb API Key {key[:8]}**** 被 API 标记为达到每日限制 (已使用: {usage['count']})")
+        
+        # 轮询到下一个 key
+        self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
     
     async def _request(self, params: dict) -> Optional[dict]:
         """发送 API 请求"""
         api_key = self._get_next_key()
         if not api_key:
-            logger.error("没有可用的 OMDb API Key")
             return None
         
         params['apikey'] = api_key
@@ -122,17 +155,22 @@ class OMDbService:
                     return data
                 else:
                     error = data.get('Error', 'Unknown error')
-                    logger.warning(f"OMDb API 返回错误: {error}")
+                    logger.warning(f"OMDb API 返回错误: {error} (Key: {api_key[:8]}****)")
+                    
                     # 如果是请求限制错误，标记这个 key 为耗尽
-                    if 'limit' in error.lower() or 'exceeded' in error.lower():
-                        self._record_usage(api_key, success=False, exhausted=True)
+                    if 'limit' in error.lower() or 'exceeded' in error.lower() or 'quota' in error.lower():
+                        self._record_usage(api_key, success=False, exhausted_by_api=True)
                     else:
                         self._record_usage(api_key, success=False)
                     return None
                     
         except httpx.HTTPStatusError as e:
             logger.error(f"OMDb API HTTP 错误: {e}")
-            self._record_usage(api_key, success=False)
+            # 401/403 可能是 key 无效或被禁用
+            if e.response.status_code in [401, 403]:
+                self._record_usage(api_key, success=False, exhausted_by_api=True)
+            else:
+                self._record_usage(api_key, success=False)
             return None
         except Exception as e:
             logger.error(f"OMDb API 请求失败: {e}")
@@ -344,40 +382,61 @@ class OMDbService:
         """获取服务状态"""
         self._ensure_initialized()
         
-        today = datetime.now().date()
         keys_status = []
         total_remaining = 0
         
         for i, key in enumerate(self.api_keys):
-            usage = self.key_usage.get(key, {})
-            # 如果是新的一天，重置计数
-            if usage.get('last_reset') != today:
-                usage['count'] = 0
-                usage['errors'] = 0
-                usage['last_reset'] = today
-                usage['exhausted'] = False
+            # 检查是否需要重置（新的一天）
+            self._reset_key_if_new_day(key)
             
-            # 如果已标记为耗尽，剩余为 0
-            if usage.get('exhausted', False):
+            usage = self.key_usage.get(key, {})
+            
+            # 计算剩余次数
+            if usage.get('exhausted_by_api', False):
+                remaining = 0
+            elif usage.get('exhausted', False):
                 remaining = 0
             else:
-                remaining = 1000 - usage.get('count', 0)
+                remaining = max(0, self.DAILY_LIMIT - usage.get('count', 0))
             
             total_remaining += remaining
             keys_status.append({
                 'index': i + 1,
+                'key_prefix': key[:8] + '****' if len(key) > 8 else key[:4] + '****',
                 'used': usage.get('count', 0),
                 'remaining': remaining,
                 'errors': usage.get('errors', 0),
                 'exhausted': usage.get('exhausted', False),
-                'is_current': i == self.current_key_index
+                'exhausted_by_api': usage.get('exhausted_by_api', False),
+                'is_current': i == self.current_key_index,
+                'last_reset': str(usage.get('last_reset', 'N/A'))
             })
         
         return {
             'total_keys': len(self.api_keys),
             'total_remaining': total_remaining,
+            'daily_limit_per_key': self.DAILY_LIMIT,
             'keys': keys_status
         }
+    
+    def reset_all_keys(self):
+        """手动重置所有 key 的使用记录（用于调试或新的一天）"""
+        self._ensure_initialized()
+        today = datetime.now().date()
+        
+        for key in self.api_keys:
+            if key in self.key_usage:
+                logger.info(f"手动重置 OMDb API Key {key[:8]}**** (之前使用: {self.key_usage[key].get('count', 0)})")
+                self.key_usage[key] = {
+                    'count': 0,
+                    'last_reset': today,
+                    'errors': 0,
+                    'exhausted': False,
+                    'exhausted_by_api': False
+                }
+        
+        self.current_key_index = 0
+        return {'message': f'已重置 {len(self.api_keys)} 个 API Key'}
 
 
 # 全局服务实例

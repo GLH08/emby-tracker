@@ -230,8 +230,11 @@ export const progressApi = {
 // External Ratings API (外部评分 - IMDB/烂番茄/Metacritic)
 export const externalRatingsApi = {
   getRatings: (params) => api.get('/external-ratings/', { params }),
+  // 强制刷新单个媒体的外部评分
+  refreshRatings: (params) => api.get('/external-ratings/', { params: { ...params, force: true } }),
   search: (query, mediaType = 'movie', page = 1) => api.get('/external-ratings/search', { params: { query, media_type: mediaType, page } }),
   getStatus: () => api.get('/external-ratings/status'),
+  resetKeys: () => api.post('/external-ratings/reset-keys'),
   getSyncStatus: () => api.get('/external-ratings/sync-status'),
   startSync: (userId, force = false) => api.post('/external-ratings/sync', null, { params: { user_id: userId, force } }),
   getCachedCount: () => api.get('/external-ratings/cached-count'),

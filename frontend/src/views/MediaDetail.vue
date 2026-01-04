@@ -124,6 +124,25 @@
                   </svg>
                 </a>
               </template>
+              
+              <!-- 手动获取/刷新外部评分按钮 -->
+              <button 
+                @click="refreshExternalRatings"
+                :disabled="refreshingExternalRatings"
+                class="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-dark-100 hover:bg-gray-200 dark:hover:bg-dark-200 transition-colors text-sm"
+                :title="externalRatings ? '刷新评分' : '获取评分'"
+              >
+                <svg 
+                  class="w-4 h-4" 
+                  :class="{ 'animate-spin': refreshingExternalRatings }"
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>{{ refreshingExternalRatings ? '获取中...' : (externalRatings ? '刷新' : '获取评分') }}</span>
+              </button>
             </template>
           </div>
 
@@ -323,6 +342,17 @@
               >
                 已看
               </span>
+              <!-- 单集评分按钮 -->
+              <button 
+                @click="openEpisodeRatingModal(episode)"
+                class="p-2 rounded-lg transition-colors"
+                :class="episodeRatings[episode.id] ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-dark-100'"
+                :title="episodeRatings[episode.id] ? `我的评分: ${episodeRatings[episode.id].rating}` : '评分'"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+              </button>
               <button 
                 @click="toggleEpisodePlayed(episode)"
                 class="btn-ghost p-2 rounded-lg"
@@ -404,6 +434,70 @@
         </div>
       </div>
     </div>
+
+    <!-- 单集评分弹窗 -->
+    <div v-if="showEpisodeRatingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showEpisodeRatingModal = false">
+      <div class="bg-white dark:bg-dark-200 rounded-2xl p-6 w-full max-w-md mx-4">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          {{ currentEpisode?.name }}
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">第 {{ currentEpisode?.index_number }} 集</p>
+        
+        <!-- 星级评分 -->
+        <div class="mb-6">
+          <div class="flex items-center justify-center space-x-1 mb-2">
+            <button
+              v-for="star in 10"
+              :key="star"
+              @click="episodeRatingValue = star"
+              class="p-1 transition-transform hover:scale-110"
+            >
+              <svg 
+                class="w-8 h-8 transition-colors"
+                :class="star <= episodeRatingValue ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'"
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+            </button>
+          </div>
+          <p class="text-center text-2xl font-bold text-gray-900 dark:text-white">
+            {{ episodeRatingValue > 0 ? episodeRatingValue : '-' }} / 10
+          </p>
+        </div>
+        
+        <!-- 评论 -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            写点评价（可选）
+          </label>
+          <textarea
+            v-model="episodeReviewText"
+            class="input w-full"
+            rows="3"
+            placeholder="这一集怎么样..."
+          ></textarea>
+        </div>
+        
+        <!-- 按钮 -->
+        <div class="flex justify-end space-x-3">
+          <button 
+            @click="showEpisodeRatingModal = false" 
+            class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-200 transition-colors"
+          >
+            取消
+          </button>
+          <button 
+            @click="saveEpisodeRating" 
+            :disabled="episodeRatingValue === 0 || savingEpisodeRating"
+            class="px-4 py-2 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {{ savingEpisodeRating ? '保存中...' : '保存评分' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -436,6 +530,15 @@ const savingRating = ref(false)
 // 外部评分
 const externalRatings = ref(null)
 const loadingExternalRatings = ref(false)
+const refreshingExternalRatings = ref(false)
+
+// 单集评分相关
+const showEpisodeRatingModal = ref(false)
+const currentEpisode = ref(null)
+const episodeRatingValue = ref(0)
+const episodeReviewText = ref('')
+const savingEpisodeRating = ref(false)
+const episodeRatings = ref({}) // 存储所有单集的评分 { episodeId: { rating, review } }
 
 const posterUrl = computed(() => {
   if (!item.value) return ''
@@ -604,6 +707,44 @@ const fetchExternalRatings = async () => {
   }
 }
 
+// 手动刷新外部评分
+const refreshExternalRatings = async () => {
+  if (!item.value || refreshingExternalRatings.value) return
+  
+  refreshingExternalRatings.value = true
+  try {
+    const imdbId = item.value.provider_ids?.Imdb
+    const tmdbId = item.value.provider_ids?.Tmdb
+    
+    const params = {
+      media_type: props.type === 'movie' ? 'movie' : 'tv',
+      force: true, // 强制刷新
+    }
+    
+    if (imdbId) {
+      params.imdb_id = imdbId
+    } else {
+      params.title = item.value.name
+      params.year = item.value.year
+    }
+    
+    if (tmdbId) {
+      params.tmdb_id = parseInt(tmdbId)
+    }
+    
+    externalRatings.value = await externalRatingsApi.getRatings(params)
+  } catch (e) {
+    if (e.response?.status === 404) {
+      alert('未找到评分数据')
+    } else {
+      console.error('Failed to refresh external ratings:', e)
+      alert('获取评分失败，可能是 API 限制')
+    }
+  } finally {
+    refreshingExternalRatings.value = false
+  }
+}
+
 // 打开评分弹窗
 const openRatingModal = () => {
   if (userRating.value) {
@@ -655,8 +796,76 @@ const fetchEpisodes = async () => {
       props.id, 
       selectedSeason.value.id
     )
+    
+    // 获取所有单集的评分状态
+    await fetchEpisodeRatings()
   } catch (e) {
     console.error('Failed to fetch episodes:', e)
+  }
+}
+
+// 获取当前季所有单集的评分
+const fetchEpisodeRatings = async () => {
+  if (!appStore.currentEmbyUser || episodes.value.length === 0) return
+  
+  for (const episode of episodes.value) {
+    try {
+      const result = await ratingsApi.checkRating(appStore.currentEmbyUser.Id, {
+        emby_id: episode.id,
+        media_type: 'episode',
+      })
+      if (result.rated) {
+        episodeRatings.value[episode.id] = {
+          rating: result.rating,
+          review: result.review
+        }
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+  }
+}
+
+// 打开单集评分弹窗
+const openEpisodeRatingModal = (episode) => {
+  currentEpisode.value = episode
+  const existing = episodeRatings.value[episode.id]
+  if (existing) {
+    episodeRatingValue.value = existing.rating
+    episodeReviewText.value = existing.review || ''
+  } else {
+    episodeRatingValue.value = 0
+    episodeReviewText.value = ''
+  }
+  showEpisodeRatingModal.value = true
+}
+
+// 保存单集评分
+const saveEpisodeRating = async () => {
+  if (!appStore.currentEmbyUser || !currentEpisode.value || episodeRatingValue.value === 0) return
+  
+  savingEpisodeRating.value = true
+  try {
+    await ratingsApi.createRating(appStore.currentEmbyUser.Id, {
+      emby_id: currentEpisode.value.id,
+      media_type: 'episode',
+      title: `${item.value.name} - ${currentEpisode.value.name}`,
+      rating: episodeRatingValue.value,
+      review: episodeReviewText.value || null,
+    })
+    
+    // 更新本地状态
+    episodeRatings.value[currentEpisode.value.id] = {
+      rating: episodeRatingValue.value,
+      review: episodeReviewText.value
+    }
+    
+    showEpisodeRatingModal.value = false
+  } catch (e) {
+    console.error('Failed to save episode rating:', e)
+    alert('保存评分失败')
+  } finally {
+    savingEpisodeRating.value = false
   }
 }
 
