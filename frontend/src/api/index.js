@@ -224,6 +224,7 @@ export const progressApi = {
   getShowsProgress: (userId) => api.get('/progress/shows', { params: { user_id: userId } }),
   getShowProgress: (seriesId, userId) => api.get(`/progress/show/${seriesId}`, { params: { user_id: userId } }),
   getProgressStats: (userId) => api.get('/progress/stats', { params: { user_id: userId } }),
+  cleanupDuplicates: (userId, dryRun = true) => api.delete('/progress/cleanup-duplicates', { params: { user_id: userId, dry_run: dryRun } }),
 }
 
 // External Ratings API (外部评分 - IMDB/烂番茄/Metacritic)

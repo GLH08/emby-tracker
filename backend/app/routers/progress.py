@@ -19,8 +19,9 @@ async def get_shows_progress(
 ):
     """
     获取所有正在追的剧集进度
+    按剧名去重，合并不同 series_id 的记录（解决重建媒体库后的重复问题）
     """
-    # 从观看历史中获取所有看过的剧集
+    # 从观看历史中获取所有看过的剧集，按剧名分组
     result = await db.execute(
         select(
             WatchHistory.series_id,
@@ -33,16 +34,46 @@ async def get_shows_progress(
                 WatchHistory.user_id == user_id,
                 WatchHistory.media_type == "Episode",
                 WatchHistory.series_id.isnot(None),
+                WatchHistory.series_name.isnot(None),
             )
         )
         .group_by(WatchHistory.series_id, WatchHistory.series_name)
         .order_by(func.max(WatchHistory.watched_at).desc())
     )
     
-    shows_progress = []
-    
+    # 按剧名合并记录
+    shows_by_name = {}
     for row in result.fetchall():
         series_id, series_name, watched_count, last_watched = row
+        
+        # 标准化剧名（去除空格、转小写）用于比较
+        normalized_name = series_name.strip().lower() if series_name else ""
+        
+        if normalized_name not in shows_by_name:
+            shows_by_name[normalized_name] = {
+                "series_ids": [series_id],
+                "series_name": series_name,
+                "watched_count": watched_count,
+                "last_watched": last_watched,
+                "primary_series_id": series_id,  # 使用最新的 series_id 作为主 ID
+            }
+        else:
+            # 合并记录
+            shows_by_name[normalized_name]["series_ids"].append(series_id)
+            shows_by_name[normalized_name]["watched_count"] += watched_count
+            # 使用最新的观看时间
+            if last_watched and (not shows_by_name[normalized_name]["last_watched"] or 
+                                 last_watched > shows_by_name[normalized_name]["last_watched"]):
+                shows_by_name[normalized_name]["last_watched"] = last_watched
+                shows_by_name[normalized_name]["primary_series_id"] = series_id
+    
+    shows_progress = []
+    
+    for normalized_name, show_data in shows_by_name.items():
+        series_id = show_data["primary_series_id"]
+        series_name = show_data["series_name"]
+        watched_count = show_data["watched_count"]
+        last_watched = show_data["last_watched"]
         
         try:
             # 从 Emby 获取剧集详情
@@ -68,13 +99,13 @@ async def get_shows_progress(
                 season_total = len(episodes)
                 total_episodes += season_total
                 
-                # 统计该季已看集数
+                # 统计该季已看集数（包括所有 series_id 的记录）
                 season_watched = await db.execute(
                     select(func.count(distinct(WatchHistory.emby_id)))
                     .where(
                         and_(
                             WatchHistory.user_id == user_id,
-                            WatchHistory.series_id == series_id,
+                            WatchHistory.series_id.in_(show_data["series_ids"]),
                             WatchHistory.season_number == season_number,
                         )
                     )
@@ -306,18 +337,23 @@ async def get_progress_stats(
     """
     获取进度统计概览
     """
-    # 统计正在追的剧集数
-    watching_result = await db.execute(
-        select(func.count(distinct(WatchHistory.series_id)))
+    # 统计正在追的剧集数（按剧名去重）
+    result = await db.execute(
+        select(WatchHistory.series_name)
         .where(
             and_(
                 WatchHistory.user_id == user_id,
                 WatchHistory.media_type == "Episode",
-                WatchHistory.series_id.isnot(None),
+                WatchHistory.series_name.isnot(None),
             )
         )
+        .distinct()
     )
-    watching_count = watching_result.scalar() or 0
+    unique_shows = set()
+    for row in result.fetchall():
+        if row[0]:
+            unique_shows.add(row[0].strip().lower())
+    watching_count = len(unique_shows)
     
     # 统计总观看集数
     episodes_result = await db.execute(
@@ -351,4 +387,122 @@ async def get_progress_stats(
         "watching_shows": watching_count,
         "episodes_watched": episodes_watched,
         "episodes_this_week": episodes_this_week,
+    }
+
+
+@router.delete("/cleanup-duplicates")
+async def cleanup_duplicate_series(
+    user_id: str = Query(..., description="Emby 用户 ID"),
+    dry_run: bool = Query(True, description="仅预览，不实际删除"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    清理重复的剧集记录（针对重建媒体库后产生的重复）
+    
+    逻辑：
+    1. 按剧名分组找出有多个 series_id 的剧集
+    2. 保留最新的 series_id 对应的记录
+    3. 删除旧的 series_id 对应的记录（这些在 Emby 中已不存在）
+    """
+    # 找出所有剧集记录，按剧名分组
+    result = await db.execute(
+        select(
+            WatchHistory.series_id,
+            WatchHistory.series_name,
+            func.max(WatchHistory.watched_at).label("last_watched"),
+            func.count(WatchHistory.id).label("record_count"),
+        )
+        .where(
+            and_(
+                WatchHistory.user_id == user_id,
+                WatchHistory.media_type == "Episode",
+                WatchHistory.series_name.isnot(None),
+            )
+        )
+        .group_by(WatchHistory.series_id, WatchHistory.series_name)
+    )
+    
+    # 按剧名分组
+    shows_by_name = {}
+    for row in result.fetchall():
+        series_id, series_name, last_watched, record_count = row
+        normalized_name = series_name.strip().lower() if series_name else ""
+        
+        if normalized_name not in shows_by_name:
+            shows_by_name[normalized_name] = []
+        
+        shows_by_name[normalized_name].append({
+            "series_id": series_id,
+            "series_name": series_name,
+            "last_watched": last_watched,
+            "record_count": record_count,
+        })
+    
+    # 找出有重复的剧集
+    duplicates = []
+    to_delete_ids = []
+    
+    for name, entries in shows_by_name.items():
+        if len(entries) > 1:
+            # 按最后观看时间排序，保留最新的
+            sorted_entries = sorted(entries, key=lambda x: x["last_watched"] or "", reverse=True)
+            keep = sorted_entries[0]
+            remove = sorted_entries[1:]
+            
+            duplicates.append({
+                "series_name": keep["series_name"],
+                "keep_series_id": keep["series_id"],
+                "keep_record_count": keep["record_count"],
+                "remove": [
+                    {
+                        "series_id": r["series_id"],
+                        "record_count": r["record_count"],
+                    }
+                    for r in remove
+                ],
+            })
+            
+            # 收集要删除的 series_id
+            for r in remove:
+                to_delete_ids.append(r["series_id"])
+    
+    if not duplicates:
+        return {
+            "message": "没有发现重复的剧集记录",
+            "duplicates": [],
+            "deleted_count": 0,
+        }
+    
+    deleted_count = 0
+    
+    if not dry_run and to_delete_ids:
+        # 实际删除
+        delete_result = await db.execute(
+            select(func.count(WatchHistory.id))
+            .where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.series_id.in_(to_delete_ids),
+                )
+            )
+        )
+        deleted_count = delete_result.scalar() or 0
+        
+        await db.execute(
+            WatchHistory.__table__.delete().where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.series_id.in_(to_delete_ids),
+                )
+            )
+        )
+        await db.commit()
+    
+    return {
+        "message": "预览模式，未实际删除" if dry_run else f"已删除 {deleted_count} 条重复记录",
+        "dry_run": dry_run,
+        "duplicates": duplicates,
+        "deleted_count": deleted_count if not dry_run else sum(
+            sum(r["record_count"] for r in d["remove"]) for d in duplicates
+        ),
     }

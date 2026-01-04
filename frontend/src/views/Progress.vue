@@ -7,21 +7,42 @@
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">追踪你正在观看的剧集</p>
       </div>
       
-      <!-- 统计概览 -->
-      <div class="flex items-center space-x-4 sm:space-x-6 text-sm">
-        <div class="text-center px-3 py-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
-          <div class="text-xl sm:text-2xl font-bold text-primary-500">{{ stats.watching_shows }}</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400">正在追</div>
-        </div>
-        <div class="text-center px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-          <div class="text-xl sm:text-2xl font-bold text-green-500">{{ stats.episodes_watched }}</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400">已看集数</div>
-        </div>
-        <div class="text-center px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <div class="text-xl sm:text-2xl font-bold text-blue-500">{{ stats.episodes_this_week }}</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400">本周观看</div>
+      <div class="flex items-center gap-2">
+        <!-- 清理重复按钮 -->
+        <button 
+          @click="cleanupDuplicates"
+          class="btn btn-secondary text-sm flex items-center space-x-1"
+          :disabled="cleaning"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          <span>{{ cleaning ? '清理中...' : '清理重复' }}</span>
+        </button>
+        
+        <!-- 统计概览 -->
+        <div class="flex items-center space-x-4 sm:space-x-6 text-sm">
+          <div class="text-center px-3 py-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+            <div class="text-xl sm:text-2xl font-bold text-primary-500">{{ stats.watching_shows }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">正在追</div>
+          </div>
+          <div class="text-center px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div class="text-xl sm:text-2xl font-bold text-green-500">{{ stats.episodes_watched }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">已看集数</div>
+          </div>
+          <div class="text-center px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div class="text-xl sm:text-2xl font-bold text-blue-500">{{ stats.episodes_this_week }}</div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">本周观看</div>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- 清理结果提示 -->
+    <div v-if="cleanupResult" class="mb-6 p-4 rounded-xl" :class="cleanupResult.deleted_count > 0 ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'">
+      {{ cleanupResult.message }}
+      <span v-if="cleanupResult.deleted_count > 0">（{{ cleanupResult.deleted_count }} 条记录）</span>
+      <button @click="cleanupResult = null" class="ml-2 hover:opacity-70">×</button>
     </div>
 
     <!-- 加载状态 -->
@@ -236,6 +257,8 @@ const stats = ref({
   episodes_this_week: 0,
 })
 const expandedShow = ref(null)
+const cleaning = ref(false)
+const cleanupResult = ref(null)
 
 const getEmbyImage = (itemId, imageTag) => {
   if (!imageTag) return null
@@ -287,6 +310,37 @@ const fetchData = async () => {
     shows.value = []
   } finally {
     loading.value = false
+  }
+}
+
+const cleanupDuplicates = async () => {
+  if (!appStore.currentEmbyUser || cleaning.value) return
+  
+  // 先预览
+  cleaning.value = true
+  try {
+    const preview = await progressApi.cleanupDuplicates(appStore.currentEmbyUser.Id, true)
+    
+    if (preview.duplicates.length === 0) {
+      cleanupResult.value = { message: '没有发现重复的剧集记录', deleted_count: 0 }
+      return
+    }
+    
+    // 确认删除
+    const confirmMsg = `发现 ${preview.duplicates.length} 部剧集有重复记录，共 ${preview.deleted_count} 条。是否清理？`
+    if (confirm(confirmMsg)) {
+      const result = await progressApi.cleanupDuplicates(appStore.currentEmbyUser.Id, false)
+      cleanupResult.value = result
+      // 刷新数据
+      await fetchData()
+    } else {
+      cleanupResult.value = { message: '已取消清理', deleted_count: 0 }
+    }
+  } catch (e) {
+    console.error('清理重复记录失败:', e)
+    cleanupResult.value = { message: '清理失败: ' + e.message, deleted_count: 0 }
+  } finally {
+    cleaning.value = false
   }
 }
 
