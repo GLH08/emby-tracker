@@ -94,7 +94,61 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
         for item in resume_items:
             all_items_dict[item.id] = item
 
+        # 额外获取：按 DatePlayed 排序的所有有播放记录的项目（不依赖 IsPlayed 标记）
+        # 这可以捕获 302 直链播放时可能未正确标记 Played 状态的记录
+        start_index = 0
+        while True:
+            try:
+                played_by_date = await emby_service.get_items(
+                    user_id=user_id,
+                    include_item_types="Movie",
+                    sort_by="DatePlayed",
+                    sort_order="Descending",
+                    start_index=start_index,
+                    limit=page_size,
+                )
+                # 只添加有 LastPlayedDate 的项目
+                for item in played_by_date.items:
+                    if item.last_played_date and item.id not in all_items_dict:
+                        all_items_dict[item.id] = item
+
+                if len(played_by_date.items) < page_size:
+                    break
+                start_index += page_size
+                # 限制最多获取 2000 条
+                if start_index >= 2000:
+                    break
+            except Exception as e:
+                logger.warning(f"获取按日期排序的电影失败: {e}")
+                break
+
+        # 同样处理剧集
+        start_index = 0
+        while True:
+            try:
+                played_by_date = await emby_service.get_items(
+                    user_id=user_id,
+                    include_item_types="Episode",
+                    sort_by="DatePlayed",
+                    sort_order="Descending",
+                    start_index=start_index,
+                    limit=page_size,
+                )
+                for item in played_by_date.items:
+                    if item.last_played_date and item.id not in all_items_dict:
+                        all_items_dict[item.id] = item
+
+                if len(played_by_date.items) < page_size:
+                    break
+                start_index += page_size
+                if start_index >= 2000:
+                    break
+            except Exception as e:
+                logger.warning(f"获取按日期排序的剧集失败: {e}")
+                break
+
         all_items = list(all_items_dict.values())
+        logger.info(f"用户 {user_id} 共发现 {len(all_items)} 个播放记录")
         
         for item in all_items:
             existing = await db.execute(

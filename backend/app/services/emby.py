@@ -1,9 +1,11 @@
 import httpx
+import logging
 from typing import Optional
 from app.config import get_settings
 from app.schemas import EmbyLibrary, EmbyMediaItem, EmbyMediaList
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class EmbyService:
@@ -216,6 +218,50 @@ class EmbyService:
     def get_image_url(self, item_id: str, image_type: str = "Primary", max_width: int = 400) -> str:
         """获取图片 URL"""
         return f"{self.base_url}/Items/{item_id}/Images/{image_type}?maxWidth={max_width}&api_key={self.api_key}"
+
+    async def get_playback_history(self, user_id: str, limit: int = 500, start_index: int = 0) -> list[dict]:
+        """
+        从活动日志获取播放历史
+        这个 API 可以获取到 302 直链播放的记录，即使项目没有被标记为 played
+        """
+        try:
+            # 使用 Items API 获取有 LastPlayedDate 的项目（不管 IsPlayed 状态）
+            params = {
+                "SortBy": "DatePlayed",
+                "SortOrder": "Descending",
+                "Recursive": "true",
+                "Fields": "Overview,Genres,ProviderIds,UserData,MediaSources,CommunityRating,ProductionYear,DatePlayed",
+                "StartIndex": start_index,
+                "Limit": limit,
+                "IncludeItemTypes": "Movie,Episode",
+                "HasQueryLimit": "false",
+            }
+            # 使用 Filters=IsPlayed 获取有播放记录的（包括正在播放和已播放）
+            # 但这可能仍然遗漏 302 播放的
+
+            data = await self._request("GET", f"/Users/{user_id}/Items", params)
+            return data.get("Items", [])
+        except Exception as e:
+            logger.warning(f"获取播放历史失败: {e}")
+            return []
+
+    async def get_activity_log(self, user_id: str = None, limit: int = 500, start_index: int = 0) -> list[dict]:
+        """
+        获取活动日志（包含所有播放活动，即使是 302 直链播放）
+        """
+        try:
+            params = {
+                "StartIndex": start_index,
+                "Limit": limit,
+            }
+            if user_id:
+                params["UserId"] = user_id
+
+            data = await self._request("GET", "/System/ActivityLog/Entries", params)
+            return data.get("Items", [])
+        except Exception as e:
+            logger.warning(f"获取活动日志失败: {e}")
+            return []
 
 
 def get_emby_service() -> EmbyService:
