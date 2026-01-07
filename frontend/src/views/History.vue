@@ -256,7 +256,7 @@
                 
                 <!-- 操作按钮 -->
                 <div class="flex items-center space-x-1 ml-2">
-                  <span 
+                  <span
                     class="px-2 py-1 rounded-lg text-xs font-medium"
                     :class="item.media_type === 'Movie' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'"
                   >
@@ -265,6 +265,17 @@
                   <span v-if="item.source === 'manual'" class="px-2 py-1 rounded-lg text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
                     手动
                   </span>
+                  <!-- 评分按钮 -->
+                  <button
+                    @click.stop="openRatingModal(item)"
+                    class="p-1.5 rounded-lg transition-colors"
+                    :class="itemRatings[item.emby_id] ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' : 'text-gray-400 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-dark-100'"
+                    :title="itemRatings[item.emby_id] ? `我的评分: ${itemRatings[item.emby_id].rating}` : '评分'"
+                  >
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                  </button>
                   <button @click="editItem(item)" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-100 text-gray-400 hover:text-gray-600">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -323,13 +334,13 @@
         <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-6">
           {{ editingItem ? '编辑记录' : '手动添加观看记录' }}
         </h3>
-        
+
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">标题 *</label>
             <input v-model="formData.title" type="text" class="input w-full" placeholder="电影或剧集名称" />
           </div>
-          
+
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">类型</label>
@@ -343,7 +354,7 @@
               <input v-model.number="formData.year" type="number" class="input w-full" placeholder="2024" />
             </div>
           </div>
-          
+
           <div v-if="formData.media_type === 'Episode'" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">剧集名称</label>
@@ -360,7 +371,7 @@
               </div>
             </div>
           </div>
-          
+
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">时长(分钟)</label>
@@ -371,22 +382,91 @@
               <input v-model.number="formData.watch_progress" type="number" class="input w-full" min="0" max="100" />
             </div>
           </div>
-          
+
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">观看时间</label>
             <input v-model="formData.watched_at" type="datetime-local" class="input w-full" />
           </div>
-          
+
           <div class="flex items-center">
             <input v-model="formData.watched" type="checkbox" id="watched" class="w-4 h-4 text-primary-500 rounded" />
             <label for="watched" class="ml-2 text-sm text-gray-700 dark:text-gray-300">已看完</label>
           </div>
         </div>
-        
+
         <div class="flex justify-end space-x-3 mt-6">
           <button @click="closeModal" class="btn btn-secondary">取消</button>
           <button @click="saveRecord" class="btn btn-primary" :disabled="!formData.title">
             {{ editingItem ? '保存' : '添加' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 评分弹窗 -->
+    <div v-if="showRatingModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="closeRatingModal">
+      <div class="bg-white dark:bg-dark-200 rounded-2xl p-6 w-full max-w-md mx-4">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          {{ getItemTitle(ratingItem) }}
+        </h2>
+        <p v-if="ratingItem?.media_type === 'Episode'" class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          S{{ ratingItem.season_number || '?' }}E{{ ratingItem.episode_number || '?' }} · {{ ratingItem.title }}
+        </p>
+        <p v-else class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          {{ ratingItem?.year }}
+        </p>
+
+        <!-- 星级评分 -->
+        <div class="mb-6">
+          <div class="flex items-center justify-center space-x-1 mb-2">
+            <button
+              v-for="star in 10"
+              :key="star"
+              @click="ratingValue = star"
+              class="p-1 transition-transform hover:scale-110"
+            >
+              <svg
+                class="w-8 h-8 transition-colors"
+                :class="star <= ratingValue ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+            </button>
+          </div>
+          <p class="text-center text-2xl font-bold text-gray-900 dark:text-white">
+            {{ ratingValue > 0 ? ratingValue : '-' }} / 10
+          </p>
+        </div>
+
+        <!-- 评论 -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            写点评价（可选）
+          </label>
+          <textarea
+            v-model="reviewText"
+            class="input w-full"
+            rows="3"
+            placeholder="分享你的观影感受..."
+          ></textarea>
+        </div>
+
+        <!-- 按钮 -->
+        <div class="flex justify-end space-x-3">
+          <button
+            @click="closeRatingModal"
+            class="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-200 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            @click="saveRating"
+            :disabled="ratingValue === 0 || savingRating"
+            class="px-4 py-2 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {{ savingRating ? '保存中...' : '保存评分' }}
           </button>
         </div>
       </div>
@@ -397,7 +477,7 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useAppStore } from '../stores/app'
-import { historyApi } from '../api'
+import { historyApi, ratingsApi } from '../api'
 
 const appStore = useAppStore()
 const loading = ref(true)
@@ -432,6 +512,14 @@ const filters = reactive({
 const showAddModal = ref(false)
 const editingItem = ref(null)
 const formData = ref(getDefaultFormData())
+
+// 评分相关状态
+const showRatingModal = ref(false)
+const ratingItem = ref(null)
+const ratingValue = ref(0)
+const reviewText = ref('')
+const savingRating = ref(false)
+const itemRatings = ref({}) // { emby_id: { rating, review } }
 
 // 计算是否有激活的筛选
 const hasActiveFilters = computed(() => {
@@ -771,7 +859,7 @@ const closeModal = () => {
 
 const saveRecord = async () => {
   if (!appStore.currentEmbyUser || !formData.value.title) return
-  
+
   try {
     if (editingItem.value) {
       // 更新
@@ -788,7 +876,7 @@ const saveRecord = async () => {
         watched_at: formData.value.watched_at ? new Date(formData.value.watched_at).toISOString() : null,
       })
     }
-    
+
     closeModal()
     await fetchHistory(true)
   } catch (e) {
@@ -796,6 +884,107 @@ const saveRecord = async () => {
     alert('保存失败: ' + (e.response?.data?.detail || e.message))
   }
 }
+
+// 评分功能
+const openRatingModal = (item) => {
+  ratingItem.value = item
+  const existing = itemRatings.value[item.emby_id]
+  if (existing) {
+    ratingValue.value = existing.rating
+    reviewText.value = existing.review || ''
+  } else {
+    ratingValue.value = 0
+    reviewText.value = ''
+  }
+  showRatingModal.value = true
+}
+
+const closeRatingModal = () => {
+  showRatingModal.value = false
+  ratingItem.value = null
+  ratingValue.value = 0
+  reviewText.value = ''
+}
+
+const saveRating = async () => {
+  if (!appStore.currentEmbyUser || !ratingItem.value || ratingValue.value === 0) return
+
+  savingRating.value = true
+  try {
+    // 确定媒体类型
+    const mediaType = ratingItem.value.media_type === 'Movie' ? 'movie' : 'episode'
+
+    // 构建标题
+    let title = ratingItem.value.title
+    if (ratingItem.value.media_type === 'Episode' && ratingItem.value.series_name) {
+      title = `${ratingItem.value.series_name} - ${ratingItem.value.title}`
+    }
+
+    await ratingsApi.createRating(appStore.currentEmbyUser.Id, {
+      emby_id: ratingItem.value.emby_id,
+      tmdb_id: ratingItem.value.tmdb_id || null,
+      media_type: mediaType,
+      title: title,
+      rating: ratingValue.value,
+      review: reviewText.value || null,
+    })
+
+    // 更新本地状态
+    itemRatings.value[ratingItem.value.emby_id] = {
+      rating: ratingValue.value,
+      review: reviewText.value,
+    }
+
+    closeRatingModal()
+  } catch (e) {
+    console.error('Failed to save rating:', e)
+    alert('保存评分失败')
+  } finally {
+    savingRating.value = false
+  }
+}
+
+// 获取当前页面所有项目的评分状态
+const fetchItemRatings = async () => {
+  if (!appStore.currentEmbyUser || historyItems.value.length === 0) return
+
+  try {
+    // 分别获取电影和剧集的评分
+    const movieIds = historyItems.value
+      .filter(item => item.media_type === 'Movie' && item.emby_id)
+      .map(item => item.emby_id)
+
+    const episodeIds = historyItems.value
+      .filter(item => item.media_type === 'Episode' && item.emby_id)
+      .map(item => item.emby_id)
+
+    // 并行获取
+    const [movieRatings, episodeRatings] = await Promise.all([
+      movieIds.length > 0
+        ? ratingsApi.checkRatingsBatch(appStore.currentEmbyUser.Id, movieIds, 'movie')
+        : { ratings: {} },
+      episodeIds.length > 0
+        ? ratingsApi.checkRatingsBatch(appStore.currentEmbyUser.Id, episodeIds, 'episode')
+        : { ratings: {} },
+    ])
+
+    // 合并结果
+    itemRatings.value = {
+      ...itemRatings.value,
+      ...(movieRatings.ratings || {}),
+      ...(episodeRatings.ratings || {}),
+    }
+  } catch (e) {
+    console.error('Failed to fetch item ratings:', e)
+  }
+}
+
+// 在获取历史记录后获取评分
+watch(historyItems, () => {
+  if (historyItems.value.length > 0) {
+    fetchItemRatings()
+  }
+})
 
 watch(() => appStore.currentEmbyUser, () => fetchHistory(true))
 onMounted(() => fetchHistory(true))

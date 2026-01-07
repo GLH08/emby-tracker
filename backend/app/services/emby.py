@@ -154,7 +154,7 @@ class EmbyService:
             f"/Users/{user_id}/Items/Resume",
             params={
                 "Limit": limit,
-                "Fields": "Overview,Genres,ProviderIds,UserData",
+                "Fields": "Overview,Genres,ProviderIds,UserData,MediaSources,CommunityRating,ProductionYear,DatePlayed",
                 "MediaTypes": "Video",
             }
         )
