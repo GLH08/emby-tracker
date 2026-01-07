@@ -615,6 +615,7 @@ const getItemLink = (item) => {
 }
 
 const getItemPoster = (item) => {
+  // 优先使用 Emby 图片
   if (item.media_type === 'Episode' && item.series_id) {
     return appStore.getEmbyImageUrl(item.series_id, 'Primary', 200)
   }

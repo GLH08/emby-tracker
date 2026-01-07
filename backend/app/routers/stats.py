@@ -20,7 +20,7 @@ async def get_overview_stats(
 ):
     """获取概览统计 - 类似 Trakt 的主要统计数据"""
     visible_library_ids = library_ids.split(",") if library_ids else None
-    
+
     result = {
         "movies": {
             "total": 0,
@@ -40,14 +40,44 @@ async def get_overview_stats(
         "total_watch_time_days": 0,
         "watchlist_count": 0,
     }
-    
+
     try:
+        # 从本地数据库获取观看时长（避免 Emby 重新添加后丢失数据）
+        # 电影观看时长
+        movie_time_result = await db.execute(
+            select(func.sum(WatchHistory.runtime_minutes)).where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.media_type == "Movie"
+                )
+            )
+        )
+        movie_time = movie_time_result.scalar() or 0
+        result["movies"]["watch_time_minutes"] = int(movie_time)
+
+        # 剧集观看时长
+        episode_time_result = await db.execute(
+            select(func.sum(WatchHistory.runtime_minutes)).where(
+                and_(
+                    WatchHistory.user_id == user_id,
+                    WatchHistory.media_type == "Episode"
+                )
+            )
+        )
+        episode_time = episode_time_result.scalar() or 0
+        result["shows"]["watch_time_minutes"] = int(episode_time)
+
+        # 总观看时长
+        result["total_watch_time_minutes"] = int(movie_time + episode_time)
+        result["total_watch_time_days"] = round(result["total_watch_time_minutes"] / 1440, 1)
+
+        # 从 Emby 获取当前媒体库统计（总数和已看数量）
         libraries = await emby_service.get_libraries(user_id)
-        
+
         for library in libraries:
             if visible_library_ids and library.id not in visible_library_ids:
                 continue
-            
+
             if library.collection_type == "movies":
                 # 电影总数
                 total_items = await emby_service.get_items(
@@ -57,7 +87,7 @@ async def get_overview_stats(
                     limit=1,
                 )
                 result["movies"]["total"] += total_items.total_count
-                
+
                 # 已看电影（包括完全看完和正在观看的）
                 watched_items = await emby_service.get_items(
                     user_id=user_id,
@@ -67,7 +97,7 @@ async def get_overview_stats(
                     limit=500,
                 )
                 result["movies"]["watched"] += watched_items.total_count
-                
+
                 # 正在观看的电影（有播放进度但未完成）
                 # 通过 Filters=IsResumable 获取
                 try:
@@ -82,13 +112,7 @@ async def get_overview_stats(
                     result["movies"]["watched"] += resume_items.total_count
                 except:
                     pass
-                
-                # 计算观看时长
-                for item in watched_items.items:
-                    if item.runtime_ticks:
-                        minutes = item.runtime_ticks / 600000000  # ticks to minutes
-                        result["movies"]["watch_time_minutes"] += minutes
-                
+
             elif library.collection_type == "tvshows":
                 # 剧集总数
                 total_shows = await emby_service.get_items(
@@ -98,7 +122,7 @@ async def get_overview_stats(
                     limit=1,
                 )
                 result["shows"]["total"] += total_shows.total_count
-                
+
                 # 集数总数
                 total_episodes = await emby_service.get_items(
                     user_id=user_id,
@@ -107,7 +131,7 @@ async def get_overview_stats(
                     limit=1,
                 )
                 result["shows"]["episodes_total"] += total_episodes.total_count
-                
+
                 # 已看集数
                 watched_episodes = await emby_service.get_items(
                     user_id=user_id,
@@ -117,7 +141,7 @@ async def get_overview_stats(
                     limit=500,
                 )
                 result["shows"]["episodes_watched"] += watched_episodes.total_count
-                
+
                 # 正在观看的剧集
                 try:
                     resume_episodes = await emby_service.get_items(
@@ -131,40 +155,25 @@ async def get_overview_stats(
                 except:
                     pass
                 result["shows"]["episodes_watched"] += watched_episodes.total_count
-                
-                # 计算观看时长
-                for item in watched_episodes.items:
-                    if item.runtime_ticks:
-                        minutes = item.runtime_ticks / 600000000
-                        result["shows"]["watch_time_minutes"] += minutes
-        
+
         # 计算进度百分比
         if result["movies"]["total"] > 0:
             result["movies"]["progress_percent"] = round(
                 result["movies"]["watched"] / result["movies"]["total"] * 100, 1
             )
-        
+
         if result["shows"]["episodes_total"] > 0:
             result["shows"]["progress_percent"] = round(
                 result["shows"]["episodes_watched"] / result["shows"]["episodes_total"] * 100, 1
             )
-        
-        # 总观看时长
-        result["total_watch_time_minutes"] = int(
-            result["movies"]["watch_time_minutes"] + result["shows"]["watch_time_minutes"]
-        )
-        result["total_watch_time_days"] = round(result["total_watch_time_minutes"] / 1440, 1)
-        
-        result["movies"]["watch_time_minutes"] = int(result["movies"]["watch_time_minutes"])
-        result["shows"]["watch_time_minutes"] = int(result["shows"]["watch_time_minutes"])
-        
+
     except Exception as e:
         print(f"Error fetching overview stats: {e}")
-    
+
     # 想看列表数量
     db_result = await db.execute(select(func.count(Watchlist.id)))
     result["watchlist_count"] = db_result.scalar() or 0
-    
+
     return result
 
 

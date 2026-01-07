@@ -162,6 +162,7 @@ async def get_history(
             {
                 "id": item.id,
                 "emby_id": item.emby_id,
+                "tmdb_id": item.tmdb_id,
                 "media_type": item.media_type,
                 "title": item.title,
                 "series_id": item.series_id,
