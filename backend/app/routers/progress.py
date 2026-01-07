@@ -1,7 +1,7 @@
 """剧集进度追踪路由"""
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, distinct
+from sqlalchemy import select, func, and_, distinct, tuple_
 from typing import Optional, List
 from collections import defaultdict
 from app.database import get_db
@@ -20,13 +20,14 @@ async def get_shows_progress(
     """
     获取所有正在追的剧集进度
     按剧名去重，合并不同 series_id 的记录（解决重建媒体库后的重复问题）
+    使用 (season_number, episode_number) 去重，避免多次删除重新添加后进度超过 100%
     """
     # 从观看历史中获取所有看过的剧集，按剧名分组
+    # 使用 (season_number, episode_number) 去重而不是 emby_id，避免重复计算
     result = await db.execute(
         select(
             WatchHistory.series_id,
             WatchHistory.series_name,
-            func.count(distinct(WatchHistory.emby_id)).label("watched_count"),
             func.max(WatchHistory.watched_at).label("last_watched"),
         )
         .where(
@@ -40,78 +41,88 @@ async def get_shows_progress(
         .group_by(WatchHistory.series_id, WatchHistory.series_name)
         .order_by(func.max(WatchHistory.watched_at).desc())
     )
-    
+
     # 按剧名合并记录
     shows_by_name = {}
     for row in result.fetchall():
-        series_id, series_name, watched_count, last_watched = row
-        
+        series_id, series_name, last_watched = row
+
         # 标准化剧名（去除空格、转小写）用于比较
         normalized_name = series_name.strip().lower() if series_name else ""
-        
+
         if normalized_name not in shows_by_name:
             shows_by_name[normalized_name] = {
                 "series_ids": [series_id],
                 "series_name": series_name,
-                "watched_count": watched_count,
                 "last_watched": last_watched,
                 "primary_series_id": series_id,  # 使用最新的 series_id 作为主 ID
             }
         else:
             # 合并记录
             shows_by_name[normalized_name]["series_ids"].append(series_id)
-            shows_by_name[normalized_name]["watched_count"] += watched_count
             # 使用最新的观看时间
-            if last_watched and (not shows_by_name[normalized_name]["last_watched"] or 
+            if last_watched and (not shows_by_name[normalized_name]["last_watched"] or
                                  last_watched > shows_by_name[normalized_name]["last_watched"]):
                 shows_by_name[normalized_name]["last_watched"] = last_watched
                 shows_by_name[normalized_name]["primary_series_id"] = series_id
     
     shows_progress = []
-    
+
     for normalized_name, show_data in shows_by_name.items():
         series_id = show_data["primary_series_id"]
         series_name = show_data["series_name"]
-        watched_count = show_data["watched_count"]
         last_watched = show_data["last_watched"]
-        
+
         try:
             # 从 Emby 获取剧集详情
             series_detail = await emby_service.get_item(user_id, series_id)
-            
+
             # 获取总集数
             total_episodes = 0
             seasons_info = []
-            
+
             # 获取季列表（返回 EmbyMediaItem 对象列表）
             seasons = await emby_service.get_seasons(user_id, series_id)
-            
+
+            # 收集当前 Emby 中存在的所有剧集的 (season_number, episode_number)
+            current_emby_episodes = set()
+
             for season in seasons:
                 # season 是 EmbyMediaItem 对象，使用属性访问
                 if season.name and season.name.startswith("Specials"):
                     continue  # 跳过特别篇
-                    
+
                 season_id = season.id
                 season_number = season.index_number or 0
-                
+
                 # 获取该季的集数
                 episodes = await emby_service.get_episodes(user_id, series_id, season_id)
                 season_total = len(episodes)
                 total_episodes += season_total
-                
-                # 统计该季已看集数（包括所有 series_id 的记录）
+
+                # 记录当前存在的剧集
+                for ep in episodes:
+                    current_emby_episodes.add((season_number, ep.index_number or 0))
+
+                # 统计该季已看集数（按 season_number + episode_number 去重，包括所有 series_id 的记录）
                 season_watched = await db.execute(
-                    select(func.count(distinct(WatchHistory.emby_id)))
+                    select(func.count(distinct(tuple_(
+                        WatchHistory.season_number,
+                        WatchHistory.episode_number
+                    ))))
                     .where(
                         and_(
                             WatchHistory.user_id == user_id,
                             WatchHistory.series_id.in_(show_data["series_ids"]),
                             WatchHistory.season_number == season_number,
+                            WatchHistory.episode_number.isnot(None),
                         )
                     )
                 )
                 season_watched_count = season_watched.scalar() or 0
-                
+                # 确保不超过实际集数
+                season_watched_count = min(season_watched_count, season_total)
+
                 # 获取每集的观看状态
                 episodes_info = []
                 for ep in sorted(episodes, key=lambda x: x.index_number or 0):
@@ -125,13 +136,30 @@ async def get_shows_progress(
                         )
                     )
                     ep_record = ep_watched_result.scalar_one_or_none()
-                    
+
+                    # 如果没有找到记录，尝试用 season_number + episode_number 查找（兼容旧记录）
+                    if not ep_record:
+                        ep_watched_result = await db.execute(
+                            select(WatchHistory)
+                            .where(
+                                and_(
+                                    WatchHistory.user_id == user_id,
+                                    WatchHistory.series_id.in_(show_data["series_ids"]),
+                                    WatchHistory.season_number == season_number,
+                                    WatchHistory.episode_number == ep.index_number,
+                                )
+                            )
+                            .order_by(WatchHistory.watched_at.desc())
+                            .limit(1)
+                        )
+                        ep_record = ep_watched_result.scalar_one_or_none()
+
                     # 判断是否已看完：watched 为 True 或 进度 >= 90%
                     progress_percent = ep_record.watch_progress if ep_record else 0
                     is_watched = False
                     if ep_record:
                         is_watched = ep_record.watched or progress_percent >= 90
-                    
+
                     episodes_info.append({
                         "episode_id": ep.id,
                         "episode_number": ep.index_number or 0,
@@ -139,7 +167,7 @@ async def get_shows_progress(
                         "is_watched": is_watched,
                         "progress_percent": progress_percent if not is_watched else 100,
                     })
-                
+
                 seasons_info.append({
                     "season_id": season_id,
                     "season_number": season_number,
@@ -150,10 +178,29 @@ async def get_shows_progress(
                     "poster_path": season.primary_image_tag,
                     "episodes": episodes_info,
                 })
-            
+
+            # 计算总的已看集数（按 season_number + episode_number 去重）
+            total_watched_result = await db.execute(
+                select(func.count(distinct(tuple_(
+                    WatchHistory.season_number,
+                    WatchHistory.episode_number
+                ))))
+                .where(
+                    and_(
+                        WatchHistory.user_id == user_id,
+                        WatchHistory.series_id.in_(show_data["series_ids"]),
+                        WatchHistory.season_number.isnot(None),
+                        WatchHistory.episode_number.isnot(None),
+                    )
+                )
+            )
+            watched_count = total_watched_result.scalar() or 0
+            # 确保不超过实际总集数
+            watched_count = min(watched_count, total_episodes)
+
             # 计算总进度
             progress = round(watched_count / total_episodes * 100, 1) if total_episodes > 0 else 0
-            
+
             # 获取下一集信息
             next_episode = await get_next_episode(user_id, series_id, db)
             
@@ -505,4 +552,103 @@ async def cleanup_duplicate_series(
         "deleted_count": deleted_count if not dry_run else sum(
             sum(r["record_count"] for r in d["remove"]) for d in duplicates
         ),
+    }
+
+
+@router.post("/validate-emby-ids")
+async def validate_emby_ids(
+    user_id: str = Query(..., description="Emby 用户 ID"),
+    fix_stale: bool = Query(False, description="修复失效的记录（更新 emby_id 为 null）"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    验证并修复数据库中的 emby_id 是否仍在 Emby 中存在
+
+    针对媒体库删除重新添加后，旧 emby_id 失效的问题：
+    1. 检查所有记录的 emby_id 是否仍在 Emby 中存在
+    2. 对于失效的 emby_id，如果存在同一剧集的新记录，标记旧记录
+    3. 可选择删除或保留失效记录（保留用于历史统计）
+    """
+    import httpx
+
+    # 获取所有有 emby_id 的记录
+    result = await db.execute(
+        select(
+            WatchHistory.id,
+            WatchHistory.emby_id,
+            WatchHistory.media_type,
+            WatchHistory.title,
+            WatchHistory.series_name,
+            WatchHistory.season_number,
+            WatchHistory.episode_number,
+        )
+        .where(
+            and_(
+                WatchHistory.user_id == user_id,
+                WatchHistory.emby_id.isnot(None),
+            )
+        )
+    )
+
+    records = result.fetchall()
+    stale_records = []
+    valid_count = 0
+    checked_count = 0
+
+    # 批量检查（避免太多 API 调用）
+    for record in records:
+        record_id, emby_id, media_type, title, series_name, season_num, episode_num = record
+        checked_count += 1
+
+        try:
+            # 尝试获取该项目
+            await emby_service.get_item(user_id, emby_id)
+            valid_count += 1
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                stale_records.append({
+                    "id": record_id,
+                    "emby_id": emby_id,
+                    "media_type": media_type,
+                    "title": title,
+                    "series_name": series_name,
+                    "season_number": season_num,
+                    "episode_number": episode_num,
+                })
+        except Exception as e:
+            # 其他错误跳过
+            print(f"检查 {emby_id} 时出错: {e}")
+            continue
+
+        # 每检查 50 个暂停一下，避免 API 过载
+        if checked_count % 50 == 0:
+            import asyncio
+            await asyncio.sleep(0.5)
+
+    fixed_count = 0
+
+    if fix_stale and stale_records:
+        # 将失效的 emby_id 和 series_id 设为 null（但保留记录用于历史统计）
+        stale_ids = [r["id"] for r in stale_records]
+
+        for record_id in stale_ids:
+            update_result = await db.execute(
+                select(WatchHistory).where(WatchHistory.id == record_id)
+            )
+            record = update_result.scalar_one_or_none()
+            if record:
+                record.emby_id = None
+                record.series_id = None
+                fixed_count += 1
+
+        await db.commit()
+
+    return {
+        "checked_count": checked_count,
+        "valid_count": valid_count,
+        "stale_count": len(stale_records),
+        "fixed_count": fixed_count if fix_stale else 0,
+        "stale_records": stale_records[:50],  # 只返回前 50 条
+        "message": f"检查完成: {valid_count} 条有效, {len(stale_records)} 条失效" +
+                   (f", 已修复 {fixed_count} 条" if fix_stale else ""),
     }

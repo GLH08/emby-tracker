@@ -173,6 +173,7 @@ async def get_history(
                 "runtime_minutes": item.runtime_minutes,
                 "community_rating": item.community_rating,
                 "genres": item.genres or [],
+                "poster_path": item.poster_path,
                 "watched": item.watched,
                 "watch_progress": item.watch_progress,
                 "play_count": item.play_count,

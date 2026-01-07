@@ -615,7 +615,27 @@ const getItemLink = (item) => {
 }
 
 const getItemPoster = (item) => {
-  // 优先使用 Emby 图片
+  // 首先尝试使用缓存的 poster_path（兼容旧记录和 Emby 项目被删除的情况）
+  if (item.poster_path) {
+    // 如果是相对路径（/emby/Items/...），构建完整 URL
+    if (item.poster_path.startsWith('/emby/')) {
+      return `${appStore.embyUrl}${item.poster_path.substring(5)}?maxWidth=200`
+    }
+    // 如果是 TMDB 路径
+    if (item.poster_path.startsWith('/')) {
+      return appStore.getTmdbImageUrl(item.poster_path, 'w200')
+    }
+    return item.poster_path
+  }
+
+  // 如果有 TMDB ID，尝试从 TMDB 获取图片（作为备用）
+  if (item.tmdb_id) {
+    const mediaType = item.media_type === 'Movie' ? 'movie' : 'tv'
+    // 注意：这里无法直接从 TMDB ID 获取图片路径，需要先查询 TMDB API
+    // 但作为备用，我们可以尝试使用 Emby 图片
+  }
+
+  // 尝试使用 Emby 图片（可能会失败，图片错误处理会显示占位符）
   if (item.media_type === 'Episode' && item.series_id) {
     return appStore.getEmbyImageUrl(item.series_id, 'Primary', 200)
   }

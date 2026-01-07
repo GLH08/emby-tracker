@@ -24,38 +24,41 @@ class User(Base):
 class WatchHistory(Base):
     """观看历史记录"""
     __tablename__ = "watch_history"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(100), index=True)  # Emby 用户 ID
     emby_id = Column(String(100), index=True)  # Emby 媒体 ID
     tmdb_id = Column(Integer, index=True, nullable=True)  # TMDB ID
     media_type = Column(String(20))  # Movie / Episode
     title = Column(String(500))
-    
+
     # 剧集信息
     series_id = Column(String(100), nullable=True)
     series_name = Column(String(500), nullable=True)
     season_number = Column(Integer, nullable=True)
     episode_number = Column(Integer, nullable=True)
-    
+
     # 媒体信息
     year = Column(Integer, nullable=True)
     runtime_minutes = Column(Integer, default=0)
     community_rating = Column(Float, nullable=True)
     genres = Column(JSON, default=list)  # 类型列表
-    
+
+    # 图片路径（用于备用显示，避免 Emby ID 失效后无法显示图片）
+    poster_path = Column(String(500), nullable=True)  # TMDB 海报路径或 Emby 图片 URL
+
     # 观看状态
     watched = Column(Boolean, default=False)  # 是否已看完
     watch_progress = Column(Float, default=0)  # 观看进度 (0-100)
     play_count = Column(Integer, default=0)  # 播放次数
-    
+
     # 时间记录
     watched_at = Column(DateTime, nullable=True)  # 观看时间（用于分组显示）
     last_played_date = Column(String(50), nullable=True)  # Emby 原始播放日期
-    
+
     # 来源标记
     source = Column(String(20), default="emby")  # emby / manual
-    
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

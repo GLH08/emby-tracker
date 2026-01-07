@@ -3,6 +3,20 @@
     <div class="animate-spin w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full"></div>
   </div>
 
+  <div v-else-if="error" class="min-h-screen flex items-center justify-center">
+    <div class="text-center max-w-md mx-auto px-4">
+      <svg class="w-20 h-20 mx-auto text-gray-300 dark:text-gray-600 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">无法加载内容</h2>
+      <p class="text-gray-500 dark:text-gray-400 mb-6">{{ errorMessage }}</p>
+      <div class="flex justify-center space-x-3">
+        <button @click="$router.back()" class="btn btn-secondary">返回</button>
+        <button @click="fetchItem" class="btn btn-primary">重试</button>
+      </div>
+    </div>
+  </div>
+
   <div v-else-if="item">
     <!-- 背景 -->
     <div class="relative h-[400px] md:h-[500px]">
@@ -433,6 +447,8 @@ const props = defineProps({
 
 const appStore = useAppStore()
 const loading = ref(true)
+const error = ref(false)
+const errorMessage = ref('')
 const item = ref(null)
 const tmdbData = ref(null)
 const seasons = ref([])
@@ -491,11 +507,14 @@ const getTmdbUrl = () => {
 
 const fetchItem = async () => {
   if (!appStore.currentEmbyUser) return
-  
+
   loading.value = true
+  error.value = false
+  errorMessage.value = ''
+
   try {
     item.value = await embyApi.getItem(appStore.currentEmbyUser.Id, props.id)
-    
+
     // 获取 TMDB 数据
     const tmdbId = item.value.provider_ids?.Tmdb
     if (tmdbId) {
@@ -505,7 +524,7 @@ const fetchItem = async () => {
         tmdbData.value = await tmdbApi.getTvShow(parseInt(tmdbId))
       }
     }
-    
+
     // 获取剧集的季和集
     if (props.type === 'show') {
       seasons.value = await embyApi.getSeasons(appStore.currentEmbyUser.Id, props.id)
@@ -513,11 +532,19 @@ const fetchItem = async () => {
         selectedSeason.value = seasons.value[0]
       }
     }
-    
+
     // 检查用户评分
     await checkUserRating()
   } catch (e) {
     console.error('Failed to fetch item:', e)
+    error.value = true
+    if (e.response?.status === 404 || e.response?.status === 500) {
+      errorMessage.value = '该媒体项可能已从 Emby 媒体库中删除。请检查媒体库或从历史记录中移除此项。'
+    } else if (e.response?.status) {
+      errorMessage.value = `服务器错误 (${e.response.status}): ${e.response.data?.detail || '请稍后重试'}`
+    } else {
+      errorMessage.value = '网络错误，请检查网络连接后重试'
+    }
   } finally {
     loading.value = false
   }

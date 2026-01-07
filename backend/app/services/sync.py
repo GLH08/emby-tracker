@@ -25,18 +25,20 @@ async def get_series_info(user_id: str, series_id: str) -> dict:
     cache_key = f"{user_id}:{series_id}"
     if cache_key in _series_cache:
         return _series_cache[cache_key]
-    
+
     try:
         series = await emby_service.get_item(user_id, series_id)
         info = {
             "genres": series.genres or [],
             "community_rating": series.community_rating,
+            "primary_image_tag": series.primary_image_tag,
+            "tmdb_id": series.provider_ids.get("Tmdb") if series.provider_ids else None,
         }
         _series_cache[cache_key] = info
         return info
     except Exception as e:
         logger.warning(f"获取剧集信息失败 {series_id}: {e}")
-        return {"genres": [], "community_rating": None}
+        return {"genres": [], "community_rating": None, "primary_image_tag": None, "tmdb_id": None}
 
 
 async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
@@ -108,12 +110,23 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                 watched_at = datetime.utcnow()
             
             runtime_minutes = int(item.runtime_ticks / 600000000) if item.runtime_ticks else 0
-            
+
             # 获取 genres 和 rating
             # 对于剧集，从 Series 获取；对于电影，直接使用
             genres = item.genres or []
             community_rating = item.community_rating
-            
+            poster_path = None
+            tmdb_id = None
+
+            # 获取 TMDB ID 和海报路径
+            if item.provider_ids:
+                tmdb_id_str = item.provider_ids.get("Tmdb")
+                if tmdb_id_str:
+                    try:
+                        tmdb_id = int(tmdb_id_str)
+                    except (ValueError, TypeError):
+                        pass
+
             # 如果没有评分或类型，获取完整的媒体信息
             if not community_rating or not genres:
                 try:
@@ -124,6 +137,15 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                             genres = series_info.get("genres", [])
                         if not community_rating:
                             community_rating = series_info.get("community_rating")
+                        # 使用 series 的图片路径
+                        if series_info.get("primary_image_tag"):
+                            poster_path = f"/emby/Items/{item.series_id}/Images/Primary"
+                        # 使用 series 的 TMDB ID
+                        if not tmdb_id and series_info.get("tmdb_id"):
+                            try:
+                                tmdb_id = int(series_info.get("tmdb_id"))
+                            except (ValueError, TypeError):
+                                pass
                     else:
                         # 电影或其他类型，获取完整信息
                         full_item = await emby_service.get_item(user_id, item.id)
@@ -131,45 +153,64 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                             genres = full_item.genres or []
                         if not community_rating:
                             community_rating = full_item.community_rating
+                        if full_item.primary_image_tag:
+                            poster_path = f"/emby/Items/{item.id}/Images/Primary"
+                        if not tmdb_id and full_item.provider_ids:
+                            tmdb_id_str = full_item.provider_ids.get("Tmdb")
+                            if tmdb_id_str:
+                                try:
+                                    tmdb_id = int(tmdb_id_str)
+                                except (ValueError, TypeError):
+                                    pass
                 except Exception as e:
                     logger.warning(f"获取完整媒体信息失败 {item.id}: {e}")
             
             if existing_record:
                 needs_update = False
-                
+
                 if abs(progress - existing_record.watch_progress) > 0.1:
                     existing_record.watch_progress = progress
                     needs_update = True
-                
+
                 if item.play_count > existing_record.play_count:
                     existing_record.play_count = item.play_count
                     needs_update = True
-                
+
                 if item.played != existing_record.watched:
                     existing_record.watched = item.played
                     needs_update = True
-                
+
                 if watched_at and item.last_played_date:
                     if not existing_record.watched_at or watched_at > existing_record.watched_at:
                         existing_record.watched_at = watched_at
                         existing_record.last_played_date = item.last_played_date
                         needs_update = True
-                
+
                 # 更新 genres 和 community_rating
                 if genres and (not existing_record.genres or existing_record.genres != genres):
                     existing_record.genres = genres
                     needs_update = True
-                
+
                 if community_rating and existing_record.community_rating != community_rating:
                     existing_record.community_rating = community_rating
                     needs_update = True
-                
+
+                # 更新 poster_path 和 tmdb_id（如果之前没有）
+                if poster_path and not existing_record.poster_path:
+                    existing_record.poster_path = poster_path
+                    needs_update = True
+
+                if tmdb_id and not existing_record.tmdb_id:
+                    existing_record.tmdb_id = tmdb_id
+                    needs_update = True
+
                 if needs_update:
                     updated += 1
             else:
                 new_record = WatchHistory(
                     user_id=user_id,
                     emby_id=item.id,
+                    tmdb_id=tmdb_id,
                     media_type=item.type,
                     title=item.name,
                     series_id=item.series_id,
@@ -180,6 +221,7 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
                     runtime_minutes=runtime_minutes,
                     community_rating=community_rating,
                     genres=genres,
+                    poster_path=poster_path,
                     watched=item.played,
                     watch_progress=progress,
                     play_count=max(item.play_count, 1),

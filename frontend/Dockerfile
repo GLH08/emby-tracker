@@ -6,8 +6,8 @@ WORKDIR /app
 # 复制 package 文件
 COPY package*.json ./
 
-# 安装依赖
-RUN npm install
+# 安装依赖（如果有 lock 文件使用 ci，否则用 install）
+RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
 
 # 复制源代码
 COPY . .
