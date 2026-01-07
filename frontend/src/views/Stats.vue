@@ -251,27 +251,27 @@
 
       <!-- 星期分布 + 类型分布 -->
       <div class="grid md:grid-cols-2 gap-6 mb-6">
-        <div class="card p-6">
+        <div class="card p-6 flex flex-col">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">星期分布</h2>
-          <div v-if="totalWeekdayCount === 0" class="h-32 flex items-center justify-center text-gray-500 dark:text-gray-400">
+          <div v-if="totalWeekdayCount === 0" class="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
             暂无数据
           </div>
           <template v-else>
-            <div class="flex items-end justify-between h-28">
-              <div 
-                v-for="day in weekdayStats" 
+            <div class="flex-1 flex items-end justify-between min-h-[120px]">
+              <div
+                v-for="day in weekdayStats"
                 :key="day.name"
-                class="flex flex-col items-center flex-1"
+                class="flex flex-col items-center flex-1 h-full justify-end"
               >
-                <div 
+                <div
                   class="w-8 rounded-t bg-blue-500 transition-all hover:bg-blue-600 min-h-[4px]"
                   :style="{ height: day.count > 0 ? `${Math.max((day.count / maxWeekdayCount) * 100, 12)}px` : '4px' }"
                 ></div>
               </div>
             </div>
             <div class="flex justify-between mt-2">
-              <div 
-                v-for="day in weekdayStats" 
+              <div
+                v-for="day in weekdayStats"
                 :key="day.name + '-label'"
                 class="flex flex-col items-center flex-1"
               >
@@ -282,16 +282,16 @@
           </template>
         </div>
 
-        <div class="card p-6">
+        <div class="card p-6 flex flex-col">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">类型分布</h2>
-          <div v-if="Object.keys(genreStats).length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+          <div v-if="Object.keys(genreStats).length === 0" class="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
             暂无数据
           </div>
-          <div v-else class="space-y-2">
-            <div v-for="(count, genre, index) in genreStats" :key="genre" class="flex items-center">
+          <div v-else class="flex-1 flex flex-col justify-center space-y-2 overflow-y-auto max-h-[200px]">
+            <div v-for="(count, genre, index) in topGenres" :key="genre" class="flex items-center">
               <span class="w-16 text-xs text-gray-600 dark:text-gray-400 truncate">{{ genre }}</span>
               <div class="flex-1 mx-2 h-4 bg-gray-100 dark:bg-dark-100 rounded overflow-hidden relative">
-                <div 
+                <div
                   class="h-full rounded transition-all"
                   :class="getGenreColor(index)"
                   :style="{ width: `${(count / maxGenreCount) * 100}%` }"
@@ -377,6 +377,12 @@ const timeDistribution = ref({})
 const weekdayStats = ref([])
 
 // 计算属性
+// 限制显示前8个类型，保持布局一致
+const topGenres = computed(() => {
+  const entries = Object.entries(genreStats.value)
+  entries.sort((a, b) => b[1] - a[1])
+  return Object.fromEntries(entries.slice(0, 8))
+})
 const maxGenreCount = computed(() => Math.max(...Object.values(genreStats.value), 1))
 const maxRatingCount = computed(() => Math.max(...Object.values(ratingStats.value), 1))
 const totalRatings = computed(() => Object.values(ratingStats.value).reduce((a, b) => a + b, 0))

@@ -1,7 +1,7 @@
 """剧集进度追踪路由"""
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, distinct, tuple_
+from sqlalchemy import select, func, and_, distinct, literal_column
 from typing import Optional, List
 from collections import defaultdict
 from app.database import get_db
@@ -105,11 +105,11 @@ async def get_shows_progress(
                     current_emby_episodes.add((season_number, ep.index_number or 0))
 
                 # 统计该季已看集数（按 season_number + episode_number 去重，包括所有 series_id 的记录）
+                # 使用子查询来统计不同的 (season_number, episode_number) 组合数量
                 season_watched = await db.execute(
-                    select(func.count(distinct(tuple_(
-                        WatchHistory.season_number,
-                        WatchHistory.episode_number
-                    ))))
+                    select(func.count(distinct(
+                        func.printf('%d-%d', WatchHistory.season_number, WatchHistory.episode_number)
+                    )))
                     .where(
                         and_(
                             WatchHistory.user_id == user_id,
@@ -180,11 +180,11 @@ async def get_shows_progress(
                 })
 
             # 计算总的已看集数（按 season_number + episode_number 去重）
+            # 使用 printf 创建唯一标识符来进行去重计数
             total_watched_result = await db.execute(
-                select(func.count(distinct(tuple_(
-                    WatchHistory.season_number,
-                    WatchHistory.episode_number
-                ))))
+                select(func.count(distinct(
+                    func.printf('%d-%d', WatchHistory.season_number, WatchHistory.episode_number)
+                )))
                 .where(
                     and_(
                         WatchHistory.user_id == user_id,
