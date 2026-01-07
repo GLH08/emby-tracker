@@ -45,40 +45,55 @@ async def sync_user_history(user_id: str, db: AsyncSession) -> dict:
     """同步单个用户的观看历史"""
     added = 0
     updated = 0
-    
+
     try:
-        # 获取所有已播放的电影
-        movies_played = await emby_service.get_items(
-            user_id=user_id,
-            include_item_types="Movie",
-            is_played=True,
-            sort_by="DatePlayed",
-            sort_order="Descending",
-            limit=1000,
-        )
-        
-        # 获取所有已播放的剧集
-        episodes_played = await emby_service.get_items(
-            user_id=user_id,
-            include_item_types="Episode",
-            is_played=True,
-            sort_by="DatePlayed",
-            sort_order="Descending",
-            limit=1000,
-        )
-        
+        # 分页获取所有已播放的电影
+        all_items_dict = {}
+
+        # 获取电影（分页）
+        start_index = 0
+        page_size = 500
+        while True:
+            movies_played = await emby_service.get_items(
+                user_id=user_id,
+                include_item_types="Movie",
+                is_played=True,
+                sort_by="DatePlayed",
+                sort_order="Descending",
+                start_index=start_index,
+                limit=page_size,
+            )
+            for item in movies_played.items:
+                all_items_dict[item.id] = item
+
+            if len(movies_played.items) < page_size:
+                break
+            start_index += page_size
+
+        # 获取剧集（分页）
+        start_index = 0
+        while True:
+            episodes_played = await emby_service.get_items(
+                user_id=user_id,
+                include_item_types="Episode",
+                is_played=True,
+                sort_by="DatePlayed",
+                sort_order="Descending",
+                start_index=start_index,
+                limit=page_size,
+            )
+            for item in episodes_played.items:
+                all_items_dict[item.id] = item
+
+            if len(episodes_played.items) < page_size:
+                break
+            start_index += page_size
+
         # 获取正在观看的
         resume_items = await emby_service.get_resume_items(user_id=user_id, limit=100)
-        
-        # 合并去重
-        all_items_dict = {}
-        for item in movies_played.items:
-            all_items_dict[item.id] = item
-        for item in episodes_played.items:
-            all_items_dict[item.id] = item
         for item in resume_items:
             all_items_dict[item.id] = item
-        
+
         all_items = list(all_items_dict.values())
         
         for item in all_items:

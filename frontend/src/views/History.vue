@@ -536,17 +536,22 @@ function getDefaultFormData() {
 
 const hasMore = computed(() => historyItems.value.length < totalCount.value)
 
-// 按日期分组
+// 按日期分组（使用本地时区）
 const groupedHistory = computed(() => {
   const groups = {}
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  
+
   for (const item of historyItems.value) {
     let dateKey = 'unknown'
     if (item.watched_at) {
-      dateKey = item.watched_at.split('T')[0]
+      // 将 UTC 时间转换为本地时间再提取日期
+      const localDate = new Date(item.watched_at)
+      const year = localDate.getFullYear()
+      const month = String(localDate.getMonth() + 1).padStart(2, '0')
+      const day = String(localDate.getDate()).padStart(2, '0')
+      dateKey = `${year}-${month}-${day}`
     }
-    
+
     if (!groups[dateKey]) {
       if (dateKey === 'unknown') {
         groups[dateKey] = {
@@ -558,7 +563,9 @@ const groupedHistory = computed(() => {
           totalMinutes: 0,
         }
       } else {
-        const d = new Date(dateKey)
+        // 使用本地时间创建日期对象
+        const [year, month, day] = dateKey.split('-').map(Number)
+        const d = new Date(year, month - 1, day)
         groups[dateKey] = {
           date: dateKey,
           day: d.getDate(),
@@ -569,13 +576,13 @@ const groupedHistory = computed(() => {
         }
       }
     }
-    
+
     groups[dateKey].items.push(item)
     if (item.watched) {
       groups[dateKey].totalMinutes += item.runtime_minutes || 0
     }
   }
-  
+
   return Object.values(groups).sort((a, b) => {
     if (a.date === 'unknown') return 1
     if (b.date === 'unknown') return -1
@@ -584,16 +591,7 @@ const groupedHistory = computed(() => {
 })
 
 const formatDateStr = (date) => {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  const diffDays = Math.floor((today - targetDate) / (1000 * 60 * 60 * 24))
-  
-  if (diffDays === 0) return '今天'
-  if (diffDays === 1) return '昨天'
-  if (diffDays === 2) return '前天'
-  if (diffDays < 7) return `${diffDays}天前`
-  
+  // 直接使用年月日格式
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
 }
 
