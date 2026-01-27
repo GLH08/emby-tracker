@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,88 +8,121 @@
   html {
     @apply scroll-smooth;
   }
-  
+
   body {
-    @apply font-sans antialiased text-gray-900 dark:text-gray-100;
+    @apply font-sans antialiased text-text-400 bg-background-100;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-code font-semibold text-text-400;
   }
 }
 
 @layer components {
+  /* Primary Button */
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-all duration-200 cursor-pointer;
   }
-  
+
   .btn-primary {
-    @apply bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700;
+    @apply bg-cta-500 text-white hover:bg-cta-600 active:bg-cta-700 shadow-md hover:shadow-lg;
   }
-  
+
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-dark-100 dark:text-gray-200 dark:hover:bg-dark-200;
+    @apply bg-transparent text-primary-500 border-2 border-primary-500 hover:bg-primary-50 active:bg-primary-100 transition-all;
   }
-  
+
   .btn-ghost {
-    @apply text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-100;
+    @apply text-text-400 hover:bg-background-200 transition-colors cursor-pointer;
   }
-  
+
+  /* Cards */
   .card {
-    @apply bg-white dark:bg-dark-200 rounded-xl shadow-sm border border-gray-100 dark:border-dark-100;
+    @apply bg-white rounded-xl shadow-md border border-background-200 transition-all duration-200 cursor-pointer;
   }
-  
+
+  .card:hover {
+    @apply shadow-lg transform -translate-y-0.5;
+  }
+
+  /* Inputs */
   .input {
-    @apply w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-dark-100 bg-white dark:bg-dark-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+    @apply w-full px-4 py-3 rounded-lg border border-background-200 bg-white text-text-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
   }
-  
+
+  .input:focus {
+    @apply shadow-sm;
+  }
+
+  /* Badges */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
   }
-  
+
   .badge-primary {
-    @apply bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400;
+    @apply bg-primary-100 text-primary-500;
   }
-  
+
+  .badge-secondary {
+    @apply bg-secondary-100 text-secondary-500;
+  }
+
+  .badge-cta {
+    @apply bg-cta-100 text-cta-600;
+  }
+
   .badge-success {
-    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400;
+    @apply bg-green-100 text-green-700;
   }
-  
+
   .badge-warning {
-    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400;
+    @apply bg-cta-100 text-cta-600;
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-purple-500;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-secondary-500;
   }
-  
+
+  .text-gradient-cta {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-cta-500 to-cta-300;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
 }
 
-/* 自定义滚动条 */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-dark-300;
+  @apply bg-background-200;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-dark-100 rounded-full;
+  @apply bg-background-200 rounded-full border-2 border-background-100;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400 dark:bg-gray-600;
+  @apply bg-primary-300;
 }
 
-/* 动画 */
+/* Focus States */
+*:focus-visible {
+  @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+}
+
+/* Animations */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease;
@@ -111,4 +146,40 @@
 .slide-leave-to {
   transform: translateY(-20px);
   opacity: 0;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark Mode */
+.dark body {
+  @apply bg-dark-400 text-gray-100;
+}
+
+.dark .card {
+  @apply bg-dark-200 border-dark-100;
+}
+
+.dark .input {
+  @apply bg-dark-300 border-dark-100 text-gray-100;
+}
+
+.dark ::-webkit-scrollbar-track {
+  @apply bg-dark-300;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-dark-100 border-dark-300;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary-600;
 }

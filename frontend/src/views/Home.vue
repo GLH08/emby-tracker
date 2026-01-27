@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="min-h-screen">
     <!-- Hero 轮播 -->
     <HeroSlider v-if="heroSlides.length > 0" :items="heroSlides" :is-custom="true" />
     <HeroSlider v-else-if="recentlyAdded.length > 0" :items="recentlyAdded.slice(0, 5)" />
@@ -7,12 +7,12 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
       <!-- 当前正在观看 (Check-in) -->
       <section v-if="currentCheckin" class="relative">
-        <div class="card p-6 bg-gradient-to-r from-primary-500/10 to-purple-500/10 border-2 border-primary-500/30">
+        <div class="card p-6 bg-gradient-to-r from-primary-500/10 to-secondary-500/10 border-2 border-primary-500/30">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
               <div class="relative">
-                <div class="w-16 h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-dark-100">
-                  <img 
+                <div class="w-16 h-24 rounded-lg overflow-hidden bg-background-200">
+                  <img
                     v-if="currentCheckin.poster_path"
                     :src="getCheckinPoster(currentCheckin)"
                     class="w-full h-full object-cover"
@@ -25,21 +25,21 @@
                 </div>
               </div>
               <div>
-                <p class="text-sm text-primary-600 dark:text-primary-400 font-medium">正在观看</p>
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                <p class="text-sm text-primary-500 font-medium">正在观看</p>
+                <h3 class="text-xl font-code font-semibold text-text-400">
                   {{ currentCheckin.series_name || currentCheckin.title }}
                 </h3>
-                <p v-if="currentCheckin.series_name" class="text-sm text-gray-500 dark:text-gray-400">
+                <p v-if="currentCheckin.series_name" class="text-sm text-text-600">
                   S{{ currentCheckin.season_number }}E{{ currentCheckin.episode_number }} · {{ currentCheckin.title }}
                 </p>
-                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <p class="text-xs text-gray-500 mt-1">
                   开始于 {{ formatCheckinTime(currentCheckin.started_at) }}
                 </p>
               </div>
             </div>
-            <button 
+            <button
               @click="endCurrentCheckin"
-              class="btn btn-secondary flex items-center space-x-2"
+              class="btn btn-secondary flex items-center space-x-2 cursor-pointer"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -53,16 +53,16 @@
 
       <!-- 媒体库概览 -->
       <section v-if="appStore.allowedLibraries.length > 0">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">媒体库</h2>
+        <h2 class="text-2xl font-code font-semibold text-text-400 mb-6">媒体库</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <router-link
             v-for="library in appStore.allowedLibraries"
             :key="library.id"
             :to="`/library/${library.id}`"
-            class="card p-6 hover:shadow-lg transition-all duration-300 group"
+            class="card p-6 group cursor-pointer"
           >
             <div class="flex items-center space-x-4">
-              <div 
+              <div
                 class="w-14 h-14 rounded-xl flex items-center justify-center transition-colors"
                 :class="getLibraryIconClass(library)"
               >
@@ -77,10 +77,10 @@
                 </svg>
               </div>
               <div>
-                <h3 class="font-semibold text-gray-900 dark:text-white group-hover:text-primary-500 transition-colors">
+                <h3 class="font-code font-semibold text-text-400 group-hover:text-primary-500 transition-colors">
                   {{ library.name }}
                 </h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
+                <p class="text-sm text-text-600">
                   {{ libraryItemCounts[library.id] || library.item_count || 0 }} 项
                 </p>
               </div>
@@ -90,7 +90,7 @@
       </section>
 
       <!-- 最近添加 -->
-      <MediaGrid 
+      <MediaGrid
         title="最近添加"
         :items="recentlyAdded"
         :loading="loading"
@@ -117,12 +117,12 @@ const currentCheckin = ref(null)
 
 const getLibraryIconClass = (library) => {
   if (library.collection_type === 'movies') {
-    return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50'
+    return 'bg-primary-100 text-primary-500 group-hover:bg-primary-200'
   }
   if (library.collection_type === 'tvshows') {
-    return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50'
+    return 'bg-secondary-100 text-secondary-500 group-hover:bg-secondary-200'
   }
-  return 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400 group-hover:bg-gray-200 dark:group-hover:bg-gray-900/50'
+  return 'bg-cta-100 text-cta-600 group-hover:bg-cta-200'
 }
 
 const getCheckinPoster = (checkin) => {
@@ -142,7 +142,7 @@ const formatCheckinTime = (isoString) => {
   const now = new Date()
   const diffMs = now - date
   const diffMins = Math.floor(diffMs / 60000)
-  
+
   if (diffMins < 1) return '刚刚'
   if (diffMins < 60) return `${diffMins} 分钟前`
   const diffHours = Math.floor(diffMins / 60)
@@ -178,7 +178,7 @@ const getItemTypes = (collectionType) => {
 
 const fetchLibraryItemCounts = async () => {
   if (!appStore.currentEmbyUser) return
-  
+
   for (const library of appStore.allowedLibraries) {
     try {
       const result = await embyApi.getItems(appStore.currentEmbyUser.Id, {
@@ -195,21 +195,21 @@ const fetchLibraryItemCounts = async () => {
 
 const fetchData = async () => {
   if (!appStore.currentEmbyUser) return
-  
+
   loading.value = true
   try {
     await fetchCurrentCheckin()
-    
+
     try {
       const customSlides = await heroApi.getSlides(true)
       heroSlides.value = customSlides
     } catch (e) {
       heroSlides.value = []
     }
-    
+
     const recent = await embyApi.getRecentlyAdded(appStore.currentEmbyUser.Id, 20)
     recentlyAdded.value = recent
-    
+
     await fetchLibraryItemCounts()
   } catch (e) {
     console.error('Failed to fetch home data:', e)
